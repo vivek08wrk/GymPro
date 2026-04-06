@@ -108,18 +108,34 @@ export default function AttendancePage() {
 
             // Mark attendance
             const res = await markAttendance({ memberId: decodedText });
+            
+            const isFirstTime = !res.data.isUpdated;
+            const memberName = res.data.data?.memberName || 'Member';
+            const message = isFirstTime 
+              ? `✅ Welcome ${memberName}! Present marked.`
+              : `⚠️ ${memberName} already marked as present today.`;
+
             setResult({
               success: true,
-              message: res.data.message,
+              message: message,
+              memberName: memberName,
+              isUpdated: res.data.isUpdated || false,
+              isDuplicate: res.data.isUpdated || false
             });
             fetchAttendanceByDate();
           } catch (err) {
             console.error('Attendance marking error:', err);
             setScanning(false);
+            
+            const isDuplicate = err.response?.status === 409;
+            const message = isDuplicate 
+              ? '⚠️ Member already marked as present today.'
+              : err.response?.data?.message || 'Attendance failed';
+
             setResult({
               success: false,
-              message: err.response?.data?.message || 'Attendance failed',
-              isDuplicate: err.response?.status === 409,
+              message: message,
+              isDuplicate: isDuplicate,
             });
             // Auto-restart scanner after delay
             setTimeout(() => {
@@ -206,11 +222,18 @@ export default function AttendancePage() {
         status: 'present',
         date: selectedDate
       });
+      
+      const isFirstTime = !res.data.isUpdated;
+      const message = isFirstTime 
+        ? `🎉 Welcome ${res.data.data.memberName}! Marked as present.`
+        : `ℹ️ ${res.data.data.memberName} already marked as present today.`;
+
       setResult({
         success: true,
-        message: res.data.message,
+        message: message,
         memberName: res.data.data.memberName,
-        isUpdated: res.data.isUpdated || false
+        isUpdated: res.data.isUpdated || false,
+        isDuplicate: res.data.isUpdated || false
       });
       setSearchQuery('');
       setSearchResults([]);
@@ -237,11 +260,18 @@ export default function AttendancePage() {
         status: 'absent',
         date: selectedDate
       });
+      
+      const isFirstTime = !res.data.isUpdated;
+      const message = isFirstTime 
+        ? `📋 ${res.data.data.memberName} marked as absent.`
+        : `ℹ️ ${res.data.data.memberName} already marked as absent today.`;
+
       setResult({
         success: true,
-        message: res.data.message,
+        message: message,
         memberName: res.data.data.memberName,
-        isUpdated: res.data.isUpdated || false
+        isUpdated: res.data.isUpdated || false,
+        isDuplicate: res.data.isUpdated || false
       });
       setSearchQuery('');
       setSearchResults([]);
