@@ -252,7 +252,7 @@ export default function AttendancePage() {
             />
             
             {showDropdown && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-gradient-to-b from-surface-container-high to-surface-container border-2 border-primary/30 rounded-kinetic shadow-2xl shadow-primary/20 z-50 max-h-80 overflow-y-auto backdrop-blur-heavy">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-linear-to-b from-surface-container-high to-surface-container border-2 border-primary/30 rounded-kinetic shadow-2xl shadow-primary/20 z-50 max-h-80 overflow-y-auto backdrop-blur-heavy">
                 {searchResults.map((member, idx) => (
                   <div
                     key={member._id}
@@ -278,14 +278,14 @@ export default function AttendancePage() {
                       <button
                         onClick={() => handleSelectMember(member)}
                         disabled={markingLoading}
-                        className="flex-1 text-xs bg-gradient-to-r from-primary to-primary-light hover:from-primary-light hover:to-primary-light hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50 text-black font-black py-3 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest shadow-lg hover:shadow-primary/50 transform group-hover:-translate-y-0.5"
+                        className="flex-1 text-xs bg-linear-to-r from-primary to-primary-light hover:from-primary-light hover:to-primary-light hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50 text-black font-black py-3 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest shadow-lg hover:shadow-primary/50 transform group-hover:-translate-y-0.5"
                       >
                         ✓ PRESENT
                       </button>
                       <button
                         onClick={() => handleSelectMemberAbsent(member)}
                         disabled={markingLoading}
-                        className="flex-1 text-xs bg-gradient-to-r from-secondary to-orange-400 hover:from-secondary/80 hover:to-secondary hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-secondary/50 text-black font-black py-3 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest shadow-lg hover:shadow-secondary/50 transform group-hover:-translate-y-0.5"
+                        className="flex-1 text-xs bg-linear-to-r from-secondary to-orange-400 hover:from-secondary/80 hover:to-secondary hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-secondary/50 text-black font-black py-3 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest shadow-lg hover:shadow-secondary/50 transform group-hover:-translate-y-0.5"
                       >
                         ✗ ABSENT
                       </button>

@@ -319,7 +319,7 @@ export default function MemberDetailPage() {
           <div className="flex gap-2 mb-6 border-b border-outline-variant/10 pb-4">
             <button
               onClick={() => handleAttendanceFilterChange('7days')}
-              className={`text-xs px-4 py-2 rounded-kinetic font-bold transition-transform transition-colors uppercase tracking-wider focus:outline-none focus:ring-2 ${
+              className={`text-xs px-4 py-2 rounded-kinetic font-bold transition-transform uppercase tracking-wider focus:outline-none focus:ring-2 ${
                 attendanceFilter === '7days'
                   ? 'bg-primary/20 text-primary scale-105 border border-primary/30'
                   : 'bg-surface-container/70 text-on-surface border border-outline-variant/10 hover:bg-surface-container/80 hover:scale-105 hover:border-primary/30'
@@ -329,7 +329,7 @@ export default function MemberDetailPage() {
             </button>
             <button
               onClick={() => handleAttendanceFilterChange('30days')}
-              className={`text-xs px-4 py-2 rounded-kinetic font-bold transition-transform transition-colors uppercase tracking-wider focus:outline-none focus:ring-2 ${
+              className={`text-xs px-4 py-2 rounded-kinetic font-bold transition-transform uppercase tracking-wider focus:outline-none focus:ring-2 ${
                 attendanceFilter === '30days'
                   ? 'bg-primary/20 text-primary scale-105 border border-primary/30'
                   : 'bg-surface-container/70 text-on-surface border border-outline-variant/10 hover:bg-surface-container/80 hover:scale-105 hover:border-primary/30'
@@ -339,7 +339,7 @@ export default function MemberDetailPage() {
             </button>
             <button
               onClick={() => handleAttendanceFilterChange('90days')}
-              className={`text-xs px-4 py-2 rounded-kinetic font-bold transition-transform transition-colors uppercase tracking-wider focus:outline-none focus:ring-2 ${
+              className={`text-xs px-4 py-2 rounded-kinetic font-bold transition-transform uppercase tracking-wider focus:outline-none focus:ring-2 ${
                 attendanceFilter === '90days'
                   ? 'bg-primary/20 text-primary scale-105 border border-primary/30'
                   : 'bg-surface-container/70 text-on-surface border border-outline-variant/10 hover:bg-surface-container/80 hover:scale-105 hover:border-primary/30'
