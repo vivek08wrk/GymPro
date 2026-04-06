@@ -152,7 +152,17 @@ export default function AttendancePage() {
     }
   }, [markedMembers, selectedDate, attackMode]);
 
-  const handleSelectMemberAbsent = async (member) => {
+  const handleSelectMemberAbsent = useCallback(async (member) => {
+    // Prevent duplicate clicks
+    if (markedMembers.has(member._id)) {
+      setResult({
+        success: false,
+        message: `${member.name} already marked in this session`,
+        isDuplicate: true
+      });
+      return;
+    }
+
     setMarkingLoading(true);
     try {
       const res = await markManualAttendance({ 
@@ -169,16 +179,23 @@ export default function AttendancePage() {
       setResult({
         success: true,
         message: message,
-        memberName: res.data.data.memberName,
+        memberName: res.data.data?.memberName || member.name,
         isUpdated: res.data.isUpdated || false,
         isDuplicate: res.data.isUpdated || false
       });
+
+      // Track marked member
+      setMarkedMembers(prev => new Set([...prev, member._id]));
+
       setSearchQuery('');
       setSearchResults([]);
       setShowDropdown(false);
-      setShowPastDateModal(false);
       fetchAttendanceByDate();
-      setSelectedDate(new Date().toISOString().split('T')[0]);
+      
+      // Auto-reset to today if in real-time mode
+      if (attackMode === 'realtime') {
+        setSelectedDate(new Date().toISOString().split('T')[0]);
+      }
     } catch (err) {
       setResult({
         success: false,
@@ -188,7 +205,7 @@ export default function AttendancePage() {
     } finally {
       setMarkingLoading(false);
     }
-  };
+  }, [markedMembers, selectedDate, attackMode]);
 
   return (
     <div className="min-h-screen bg-surface">
@@ -216,34 +233,42 @@ export default function AttendancePage() {
             <label className="text-xs font-black uppercase tracking-widest text-primary mb-2 block">Check-in Hub</label>
             <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter text-on-surface">Mark <span className="text-primary">Attendance</span></h1>
           </div>
-          {/* Mode Toggle */}
-          <div className="flex gap-2 bg-surface-container-high/50 p-1 rounded-kinetic border border-outline-variant/10">
-            <button
-              onClick={() => {
-                setAttackMode('realtime');
-                setMarkedMembers(new Set());
-              }}
-              className={`px-4 py-2 rounded-kinetic text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-                attackMode === 'realtime'
-                  ? 'bg-primary text-black shadow-lg'
-                  : 'text-on-surface-variant hover:text-on-surface'
-              }`}
-            >
-              ⏱️ Real-time
-            </button>
-            <button
-              onClick={() => {
-                setAttackMode('batch');
-                setMarkedMembers(new Set());
-              }}
-              className={`px-4 py-2 rounded-kinetic text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
-                attackMode === 'batch'
-                  ? 'bg-primary text-black shadow-lg'
-                  : 'text-on-surface-variant hover:text-on-surface'
-              }`}
-            >
-              📋 Batch Entry
-            </button>
+          {/* Mode Toggle with Description */}
+          <div className="space-y-2">
+            <div className="flex gap-2 bg-surface-container-high/50 p-1 rounded-kinetic border border-outline-variant/10">
+              <button
+                onClick={() => {
+                  setAttackMode('realtime');
+                  setMarkedMembers(new Set());
+                  setSelectedDate(new Date().toISOString().split('T')[0]); // Force today
+                }}
+                className={`px-4 py-2 rounded-kinetic text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                  attackMode === 'realtime'
+                    ? 'bg-primary text-black shadow-lg'
+                    : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                ⏱️ Real-time
+              </button>
+              <button
+                onClick={() => {
+                  setAttackMode('batch');
+                  setMarkedMembers(new Set());
+                }}
+                className={`px-4 py-2 rounded-kinetic text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                  attackMode === 'batch'
+                    ? 'bg-primary text-black shadow-lg'
+                    : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                📋 Batch Entry
+              </button>
+            </div>
+            <p className="text-xs text-on-surface-variant">
+              {attackMode === 'realtime' 
+                ? '⚡ Auto-resets to today after each entry' 
+                : '📅 Sticky date - mark any day without jumping'}
+            </p>
           </div>
         </div>
 
@@ -265,18 +290,34 @@ export default function AttendancePage() {
         )}
 
         {/* Date selector */}
-        <div className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic p-4 mb-6 flex items-center gap-3 border border-outline-variant/10">
+        <div className={`backdrop-blur-heavy rounded-kinetic p-4 mb-6 flex items-center gap-3 border transition-all duration-200 ${
+          attackMode === 'realtime'
+            ? 'bg-primary/20 border-primary/30 opacity-75'
+            : 'bg-surface-container-high/50 border-outline-variant/10'
+        }`}>
           <label className="text-sm font-bold text-on-surface-variant uppercase tracking-widest">Date:</label>
           <input
             type="date"
             value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(e) => {
+              if (attackMode === 'batch') {
+                setSelectedDate(e.target.value);
+              }
+            }}
+            disabled={attackMode === 'realtime'}
             max={new Date().toISOString().split('T')[0]}
-            className="bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-4 py-2 text-sm text-on-surface focus:outline-none focus:border-primary"
+            className={`bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-4 py-2 text-sm text-on-surface focus:outline-none focus:border-primary transition-all ${
+              attackMode === 'realtime' ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           />
           {selectedDate !== new Date().toISOString().split('T')[0] && (
             <span className="text-xs bg-secondary/20 text-secondary px-3 py-1.5 rounded-kinetic font-bold tracking-widest uppercase" suppressHydrationWarning>
               {new Date(selectedDate).toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' })}
+            </span>
+          )}
+          {attackMode === 'realtime' && (
+            <span className="text-xs bg-primary/20 text-primary px-3 py-1.5 rounded-kinetic font-bold tracking-widest uppercase ml-auto">
+              📍 Today Only
             </span>
           )}
         </div>
