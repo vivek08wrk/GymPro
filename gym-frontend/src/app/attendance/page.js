@@ -39,41 +39,74 @@ export default function AttendancePage() {
   };
 
   const startScanner = async () => {
-    const { Html5QrcodeScanner } = await import('html5-qrcode');
+    try {
+      const { Html5QrcodeScanner } = await import('html5-qrcode');
 
-    setScanning(true);
-    setResult(null);
+      setScanning(true);
+      setResult(null);
 
-    const scanner = new Html5QrcodeScanner('qr-reader', {
-      fps: 10,
-      qrbox: { width: 250, height: 250 },
-    });
-
-    scannerRef.current = scanner;
-
-    scanner.render(
-      async (decodedText) => {
-        scanner.clear();
+      // Request camera permissions for mobile
+      try {
+        await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      } catch (permErr) {
+        setResult({
+          success: false,
+          message: 'Camera access denied. Please enable camera permissions.',
+        });
         setScanning(false);
-
-        try {
-          const res = await markAttendance({ memberId: decodedText });
-          setResult({
-            success: true,
-            message: res.data.message,
-          });
-          fetchAttendanceByDate();
-        } catch (err) {
-          setResult({
-            success: false,
-            message: err.response?.data?.message || 'Attendance failed',
-          });
-        }
-      },
-      (error) => {
-        // Scanning errors ignore karo — continuously scan karta rahega
+        return;
       }
-    );
+
+      // Mobile-optimized QR scanner config
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const qrboxSize = isMobile ? 200 : 250;
+
+      const scanner = new Html5QrcodeScanner('qr-reader', {
+        fps: 15,
+        qrbox: { width: qrboxSize, height: qrboxSize },
+        aspectRatio: 1.0,
+        showTorchButtonIfSupported: true,
+        disableFlip: false,
+      }, /* verbose= */ false);
+
+      scannerRef.current = scanner;
+
+      scanner.render(
+        async (decodedText) => {
+          try {
+            scanner.clear();
+            setScanning(false);
+
+            // Mark attendance with scanned member ID
+            const res = await markAttendance({ memberId: decodedText });
+            setResult({
+              success: true,
+              message: res.data.message,
+            });
+            fetchAttendanceByDate();
+          } catch (err) {
+            setScanning(false);
+            setResult({
+              success: false,
+              message: err.response?.data?.message || 'Attendance failed',
+              isDuplicate: err.response?.status === 409,
+            });
+            // Restart scanner for retry
+            setTimeout(() => startScanner(), 2000);
+          }
+        },
+        (error) => {
+          // Silently continue scanning on errors
+        }
+      );
+    } catch (err) {
+      console.error('Scanner initialization failed:', err);
+      setResult({
+        success: false,
+        message: 'Failed to initialize camera. Please check your device settings.',
+      });
+      setScanning(false);
+    }
   };
 
   const stopScanner = () => {
@@ -268,8 +301,9 @@ export default function AttendancePage() {
         </div>
 
         {/* QR Scanner section */}
-        <div className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic p-6 mb-6 border border-outline-variant/10">
-          <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-3">QR Scanner</h3>
+        <div className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic p-4 md:p-6 mb-6 border border-outline-variant/10">
+          <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-2">QR Scanner</h3>
+          <p className="text-xs text-on-surface-variant mb-4">Point your camera at a member's QR code to mark attendance</p>
 
           {/* Result message */}
           {result && (
@@ -288,24 +322,43 @@ export default function AttendancePage() {
             </div>
           )}
 
-          {/* QR Reader div */}
-          <div id="qr-reader" className="w-full mb-4" />
+          {/* QR Reader div - Mobile optimized */}
+          <div 
+            id="qr-reader" 
+            className={`w-full mb-4 rounded-kinetic overflow-hidden ${scanning ? 'border-2 border-primary shadow-lg shadow-primary/30' : ''}`}
+            style={{
+              minHeight: scanning ? '300px' : '0px',
+              transition: 'all 0.3s ease'
+            }}
+          />
 
           {/* Buttons */}
-          {!scanning ? (
-            <button
-              onClick={startScanner}
-              className="w-full bg-primary hover:bg-primary-light hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50 text-black font-bold py-3 rounded-kinetic transition-all duration-200 text-sm uppercase tracking-wider font-inter-tight shadow-lg hover:shadow-primary/30"
-            >
-              📷 Start QR Scanner
-            </button>
-          ) : (
-            <button
-              onClick={stopScanner}
-              className="w-full bg-secondary hover:bg-secondary/80 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-secondary/50 text-black font-bold py-3 rounded-kinetic transition-all duration-200 text-sm uppercase tracking-wider font-inter-tight shadow-lg hover:shadow-secondary/30"
-            >
-              Stop Scanner
-            </button>
+          <div className="flex gap-2">
+            {!scanning ? (
+              <button
+                onClick={startScanner}
+                className="flex-1 bg-primary hover:bg-primary-light hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50 text-black font-bold py-3 rounded-kinetic transition-all duration-200 text-sm uppercase tracking-wider font-inter-tight shadow-lg hover:shadow-primary/30"
+              >
+                📷 Start Camera
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={stopScanner}
+                  className="flex-1 bg-secondary hover:bg-secondary/80 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-secondary/50 text-black font-bold py-3 rounded-kinetic transition-all duration-200 text-sm uppercase tracking-wider font-inter-tight shadow-lg hover:shadow-secondary/30"
+                >
+                  Stop
+                </button>
+              </>
+            )}
+          </div>
+
+          {scanning && (
+            <div className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-kinetic text-center">
+              <p className="text-xs text-primary font-bold uppercase tracking-widest">
+                🎯 Scanning... Position QR code in frame
+              </p>
+            </div>
           )}
         </div>
 

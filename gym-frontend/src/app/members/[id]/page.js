@@ -234,9 +234,6 @@ export default function MemberDetailPage() {
                 </span>
               </div>
             </div>
-            <span className={`text-xs font-bold px-3 py-1.5 rounded-kinetic uppercase tracking-wider whitespace-nowrap ml-4 ${statusColors[status.color]}`}>
-              {status.label}
-            </span>
           </div>
 
           {/* Details grid */}
@@ -283,30 +280,32 @@ export default function MemberDetailPage() {
 
           {/* Buttons section */}
           {!showRenewalForm && (
-            <div className="grid grid-cols-3 gap-3 mt-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-6">
               <button
                 onClick={() => setShowRenewalForm(true)}
-                className="bg-primary hover:bg-primary-light hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50 text-black font-bold py-3 rounded-kinetic transition-all duration-200 text-sm uppercase tracking-wider shadow-md hover:shadow-primary/30"
+                className="w-full bg-primary hover:bg-primary-light hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50 text-black font-bold py-3 rounded-kinetic transition-all duration-200 text-sm uppercase tracking-wider shadow-md hover:shadow-primary/30"
               >
                 Renew
               </button>
-              <button
-                onClick={handleSendMotivation}
-                disabled={motivationLoading}
-                className="bg-primary/20 hover:bg-primary/40 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50 text-primary font-bold py-3 rounded-kinetic transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider shadow-md hover:shadow-primary/30"
-              >
-                {motivationLoading ? '⏳' : '💪'} Motivate
-              </button>
+
               <button
                 onClick={handleToggleStatus}
                 disabled={toggleLoading}
-                className={`font-bold py-3 rounded-kinetic transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 shadow-md ${
+                className={`w-full font-bold py-3 rounded-kinetic transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 shadow-md ${
                   member.isActive 
                     ? 'bg-secondary/20 hover:bg-secondary/40 text-secondary focus:ring-secondary/50 hover:shadow-secondary/30' 
                     : 'bg-primary/20 hover:bg-primary/40 text-primary focus:ring-primary/50 hover:shadow-primary/30'
                 }`}
               >
                 {toggleLoading ? '⏳' : (member.isActive ? '✗ Inactive' : '✓ Active')}
+              </button>
+
+              <button
+                onClick={handleSendMotivation}
+                disabled={motivationLoading}
+                className="col-span-2 md:col-span-1 w-full bg-primary/20 hover:bg-primary/40 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50 text-primary font-bold py-3 rounded-kinetic transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider shadow-md hover:shadow-primary/30"
+              >
+                {motivationLoading ? '⏳' : '💪'} Motivate
               </button>
             </div>
           )}
@@ -320,30 +319,30 @@ export default function MemberDetailPage() {
           <div className="flex gap-2 mb-6 border-b border-outline-variant/10 pb-4">
             <button
               onClick={() => handleAttendanceFilterChange('7days')}
-              className={`text-xs px-4 py-2 rounded-kinetic font-bold transition uppercase tracking-wider ${
+              className={`text-xs px-4 py-2 rounded-kinetic font-bold transition-transform transition-colors uppercase tracking-wider focus:outline-none focus:ring-2 ${
                 attendanceFilter === '7days'
-                  ? 'bg-primary/20 text-primary'
-                  : 'bg-surface-container/50 text-on-surface-variant hover:bg-surface-container'
+                  ? 'bg-primary/20 text-primary scale-105 border border-primary/30'
+                  : 'bg-surface-container/70 text-on-surface border border-outline-variant/10 hover:bg-surface-container/80 hover:scale-105 hover:border-primary/30'
               }`}
             >
               Last 7 Days
             </button>
             <button
               onClick={() => handleAttendanceFilterChange('30days')}
-              className={`text-xs px-4 py-2 rounded-kinetic font-bold transition uppercase tracking-wider ${
+              className={`text-xs px-4 py-2 rounded-kinetic font-bold transition-transform transition-colors uppercase tracking-wider focus:outline-none focus:ring-2 ${
                 attendanceFilter === '30days'
-                  ? 'bg-primary/20 text-primary'
-                  : 'bg-surface-container/50 text-on-surface-variant hover:bg-surface-container'
+                  ? 'bg-primary/20 text-primary scale-105 border border-primary/30'
+                  : 'bg-surface-container/70 text-on-surface border border-outline-variant/10 hover:bg-surface-container/80 hover:scale-105 hover:border-primary/30'
               }`}
             >
               Last 30 Days
             </button>
             <button
               onClick={() => handleAttendanceFilterChange('90days')}
-              className={`text-xs px-4 py-2 rounded-kinetic font-bold transition uppercase tracking-wider ${
+              className={`text-xs px-4 py-2 rounded-kinetic font-bold transition-transform transition-colors uppercase tracking-wider focus:outline-none focus:ring-2 ${
                 attendanceFilter === '90days'
-                  ? 'bg-primary/20 text-primary'
-                  : 'bg-surface-container/50 text-on-surface-variant hover:bg-surface-container'
+                  ? 'bg-primary/20 text-primary scale-105 border border-primary/30'
+                  : 'bg-surface-container/70 text-on-surface border border-outline-variant/10 hover:bg-surface-container/80 hover:scale-105 hover:border-primary/30'
               }`}
             >
               Last 90 Days
@@ -351,26 +350,24 @@ export default function MemberDetailPage() {
           </div>
 
           {/* Stats */}
-          {monthlySummary && (
-            <div className="grid grid-cols-4 gap-3 mb-6">
-              <div className="bg-surface-container rounded-kinetic p-4 text-center border border-outline-variant/10">
-                <p className="text-s font-black text-primary">{monthlySummary.total}</p>
-                <p className="text-xs text-on-surface-variant mt-1 font-bold uppercase tracking-wider">Total Records</p>
-              </div>
-              <div className="bg-surface-container rounded-kinetic p-4 text-center border border-outline-variant/10">
-                <p className="text-s font-black text-primary">{monthlySummary.present}</p>
-                <p className="text-xs text-on-surface-variant mt-1 font-bold uppercase tracking-wider">Present</p>
-              </div>
-              <div className="bg-surface-container rounded-kinetic p-4 text-center border border-outline-variant/10">
-                <p className="text-s font-black text-secondary">{monthlySummary.absent}</p>
-                <p className="text-xs text-on-surface-variant mt-1 font-bold uppercase tracking-wider">Absent</p>
-              </div>
-              <div className="bg-surface-container rounded-kinetic p-4 text-center border border-outline-variant/10">
-                <p className="text-s font-black text-tertiary">{monthlySummary.attendancePercentage}%</p>
-                <p className="text-xs text-on-surface-variant mt-1 font-bold uppercase tracking-wider">Attendance %</p>
-              </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div className="bg-surface-container rounded-kinetic p-4 text-center border border-outline-variant/10">
+              <p className="text-s font-black text-primary">{monthlySummary?.total ?? 0}</p>
+              <p className="text-xs text-on-surface-variant mt-1 font-bold uppercase tracking-wider">Total Records</p>
             </div>
-          )}
+            <div className="bg-surface-container rounded-kinetic p-4 text-center border border-outline-variant/10">
+              <p className="text-s font-black text-primary">{monthlySummary?.present ?? 0}</p>
+              <p className="text-xs text-on-surface-variant mt-1 font-bold uppercase tracking-wider">Present</p>
+            </div>
+            <div className="bg-surface-container rounded-kinetic p-4 text-center border border-outline-variant/10">
+              <p className="text-s font-black text-secondary">{monthlySummary?.absent ?? 0}</p>
+              <p className="text-xs text-on-surface-variant mt-1 font-bold uppercase tracking-wider">Absent</p>
+            </div>
+            <div className="bg-surface-container rounded-kinetic p-4 text-center border border-outline-variant/10">
+              <p className="text-s font-black text-tertiary">{monthlySummary?.attendancePercentage ?? 0}%</p>
+              <p className="text-xs text-on-surface-variant mt-1 font-bold uppercase tracking-wider">Attendance %</p>
+            </div>
+          </div>
 
           {/* Attendance records */}
           {attendanceLoading ? (
