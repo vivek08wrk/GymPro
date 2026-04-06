@@ -130,6 +130,27 @@ export default function DashboardPage() {
     return peakDay || { day: 'N/A', count: 0 };
   };
 
+  // 📈 Calculate revenue metrics
+  const calculateRevenueMetrics = () => {
+    if (revenueData.length === 0) return { growth: 0, avgDaily: 0, bestMonth: '', avgPerMember: 0 };
+    
+    // Growth: compare last month to previous month
+    const lastMonth = revenueData[revenueData.length - 1]?.revenue || 0;
+    const prevMonth = revenueData[revenueData.length - 2]?.revenue || lastMonth;
+    const growth = prevMonth > 0 ? Math.round(((lastMonth - prevMonth) / prevMonth) * 100) : 0;
+    
+    // Average daily revenue (assume ~30 days per month on average)
+    const avgDaily = Math.round(stats.totalRevenue / (revenueData.length * 30));
+    
+    // Best performing month
+    const bestMonth = revenueData.reduce((max, curr) => curr.revenue > max.revenue ? curr : max, revenueData[0]);
+    
+    // Average per member
+    const avgPerMember = stats.activeMembers > 0 ? Math.round(stats.totalRevenue / stats.activeMembers) : 0;
+    
+    return { growth, avgDaily, bestMonth: bestMonth?.month || '', avgPerMember };
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     router.push('/login');
@@ -241,32 +262,57 @@ export default function DashboardPage() {
           </div>
 
           {/* Revenue Chart */}
-          {revenueData.length > 0 && (
-            <div className="md:col-span-7 bg-surface-container-high/50 backdrop-blur-heavy p-8 rounded-kinetic border border-outline-variant/10">
-              <div className="flex justify-between items-end mb-8">
-                <div>
-                  <h3 className="text-on-surface text-2xl font-black italic tracking-tighter">Monthly Revenue</h3>
-                  <p className="text-on-surface-variant text-sm">Consistent growth this quarter</p>
+          {revenueData.length > 0 && (() => {
+            const metrics = calculateRevenueMetrics();
+            const growthColor = metrics.growth > 0 ? 'text-primary' : metrics.growth < 0 ? 'text-tertiary' : 'text-on-surface-variant';
+            const growthArrow = metrics.growth > 0 ? '↑' : metrics.growth < 0 ? '↓' : '→';
+            
+            return (
+              <div className="md:col-span-7 bg-surface-container-high/50 backdrop-blur-heavy p-8 rounded-kinetic border border-outline-variant/10">
+                <div className="flex justify-between items-end mb-8">
+                  <div>
+                    <h3 className="text-on-surface text-2xl font-black italic tracking-tighter">Monthly Revenue</h3>
+                    <p className="text-on-surface-variant text-sm">Performance & Growth Trends</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-primary text-3xl font-black italic">₹{(stats.totalRevenue / 1000).toFixed(1)}k</p>
+                    <p className={`text-xs font-bold uppercase tracking-widest ${growthColor}`}>
+                      {growthArrow} {Math.abs(metrics.growth)}% vs last month
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-primary text-3xl font-black italic">₹{(stats.totalRevenue / 1000).toFixed(1)}k</p>
-                  <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Total</p>
+                
+                {/* Metrics Row */}
+                <div className="grid grid-cols-3 gap-3 mb-6 pb-6 border-b border-outline-variant/20">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1">Avg Daily</p>
+                    <p className="text-2xl font-black text-primary">₹{metrics.avgDaily.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1">Per Member</p>
+                    <p className="text-2xl font-black text-secondary">₹{metrics.avgPerMember.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1">Best Month</p>
+                    <p className="text-lg font-black text-on-surface">{metrics.bestMonth}</p>
+                  </div>
                 </div>
+                
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#262626" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#adaaaa" }} />
+                    <YAxis tick={{ fontSize: 12, fill: "#adaaaa" }} />
+                    <Tooltip 
+                      formatter={(val) => `₹${val.toLocaleString()}`}
+                      contentStyle={{ backgroundColor: "#131313", border: "1px solid #262626" }}
+                    />
+                    <Bar dataKey="revenue" fill="#cafd00" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#262626" />
-                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#adaaaa" }} />
-                  <YAxis tick={{ fontSize: 12, fill: "#adaaaa" }} />
-                  <Tooltip 
-                    formatter={(val) => `₹${val.toLocaleString()}`}
-                    contentStyle={{ backgroundColor: "#131313", border: "1px solid #262626" }}
-                  />
-                  <Bar dataKey="revenue" fill="#cafd00" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Quick Actions */}
           <div className="md:col-span-5 bg-surface-container-high/50 backdrop-blur-heavy p-8 rounded-kinetic border border-outline-variant/10">
