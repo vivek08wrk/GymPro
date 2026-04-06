@@ -2,8 +2,6 @@ const Member = require('../models/Member');
 const Attendance = require('../models/Attendance');
 const Payment = require('../models/Payment');
 const MemberProgress = require('../models/MemberProgress');
-const QRCode = require('qrcode');
-const cloudinary = require('../config/cloudinary');
 const { sendWelcomeMessage, sendMotivationalMessage } = require('../services/whatsappService');
 const { generateMotivationalMessage } = require('../services/groqService');
 
@@ -30,45 +28,24 @@ const getMemberById = async (req, res) => {
   }
 };
 
-// POST create new member — QR auto generate hoga
+// POST create new member
 const createMember = async (req, res) => {
   try {
-    // 1️⃣ Member create
+    // Create member
     const member = await Member.create(req.body);
     console.log(`📝 Member created: ${member.name} (${member._id})`);
 
-    // 2️⃣ QR generate (base64) — data:image/png;base64,...
-    console.log(`🔄 Generating QR code...`);
-    const qrBase64 = await QRCode.toDataURL(member._id.toString());
-
-    // 3️⃣ Upload to Cloudinary (base64 → public URL)
-    console.log(`⬆️  Uploading QR to Cloudinary...`);
-    const uploadRes = await cloudinary.uploader.upload(qrBase64, {
-      folder: 'gym/qr-codes',
-      resource_type: 'auto',
-      format: 'png'
-    });
-
-    if (!uploadRes?.secure_url) {
-      throw new Error('Cloudinary upload failed - no URL received');
-    }
-
-    // 4️⃣ Save Cloudinary URL (not base64)
-    member.qrCode = uploadRes.secure_url;
-    await member.save();
-    console.log(`💾 QR URL saved: ${uploadRes.secure_url}`);
-
-    // 5️⃣ Send welcome message + QR via WhatsApp
-    console.log(`📱 Sending WhatsApp welcome message & QR...`);
+    // Send welcome message via WhatsApp
+    console.log(`📱 Sending WhatsApp welcome message...`);
     try {
       await sendWelcomeMessage(member);
-      console.log(`✅ WhatsApp messages sent successfully`);
+      console.log(`✅ WhatsApp message sent successfully`);
     } catch (whatsappError) {
       console.warn(`⚠️  WhatsApp send failed, but member created:`, whatsappError.message);
       // Don't fail the API response if WhatsApp fails
     }
 
-    // 6️⃣ Response
+    // Response
     res.status(201).json({ 
       success: true, 
       data: member,

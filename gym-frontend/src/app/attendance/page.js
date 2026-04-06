@@ -3,15 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { markAttendance, getAttendanceByDate, searchMembers, markManualAttendance } from '@/lib/api';
-import QrScanner from 'qr-scanner';
+import { getAttendanceByDate, searchMembers, markManualAttendance, getMembers } from '@/lib/api';
 
 export default function AttendancePage() {
   useAuth();
 
   const router = useRouter();
-  const scannerRef = useRef(null);
-  const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState(null);
   const [attendanceList, setAttendanceList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,28 +18,21 @@ export default function AttendancePage() {
   const [markingLoading, setMarkingLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showPastDateModal, setShowPastDateModal] = useState(false);
+  const [totalMembers, setTotalMembers] = useState(0);
 
   useEffect(() => {
     fetchAttendanceByDate();
+    fetchTotalMembers();
   }, [selectedDate]);
 
-  // Cleanup scanner on unmount
-  useEffect(() => {
-    return () => {
-      if (scannerRef.current) {
-        try {
-          scannerRef.current.destroy();
-        } catch (e) {
-          // ignore
-        }
-        scannerRef.current = null;
-      }
-      const videoElement = document.getElementById('video-scanner');
-      if (videoElement) {
-        videoElement.remove();
-      }
-    };
-  }, []);
+  const fetchTotalMembers = async () => {
+    try {
+      const res = await getMembers();
+      setTotalMembers(res.data.data?.length || 0);
+    } catch (err) {
+      console.error('Failed to fetch total members:', err);
+    }
+  };
 
   const fetchAttendanceByDate = async () => {
     try {
@@ -54,144 +44,6 @@ export default function AttendancePage() {
       setAttendanceList([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const startScanner = async () => {
-    try {
-      // Stop any existing scanner
-      if (scannerRef.current) {
-        scannerRef.current.destroy();
-        scannerRef.current = null;
-      }
-
-      setScanning(true);
-      setResult(null);
-
-      // Get or create video element
-      let videoElement = document.getElementById('video-scanner');
-      if (!videoElement) {
-        const container = document.getElementById('qr-reader');
-        if (!container) {
-          setResult({
-            success: false,
-            message: 'Scanner container not found.',
-          });
-          setScanning(false);
-          return;
-        }
-        container.innerHTML = '';
-        videoElement = document.createElement('video');
-        videoElement.id = 'video-scanner';
-        videoElement.style.width = '100%';
-        videoElement.style.height = '100%';
-        videoElement.style.objectFit = 'cover';
-        videoElement.style.borderRadius = '12px';
-        videoElement.style.display = 'block';
-        container.appendChild(videoElement);
-      }
-
-      // Create and start scanner
-      const scanner = new QrScanner(
-        videoElement,
-        async (result) => {
-          try {
-            // Extract the QR data
-            const decodedText = result.data;
-            
-            // Stop scanner
-            if (scannerRef.current) {
-              scannerRef.current.destroy();
-              scannerRef.current = null;
-            }
-            setScanning(false);
-
-            // Mark attendance
-            const res = await markAttendance({ memberId: decodedText });
-            
-            const isFirstTime = !res.data.isUpdated;
-            const memberName = res.data.data?.memberName || 'Member';
-            const message = isFirstTime 
-              ? `✅ Welcome ${memberName}! Present marked.`
-              : `⚠️ ${memberName} already marked as present today.`;
-
-            setResult({
-              success: true,
-              message: message,
-              memberName: memberName,
-              isUpdated: res.data.isUpdated || false,
-              isDuplicate: res.data.isUpdated || false
-            });
-            fetchAttendanceByDate();
-          } catch (err) {
-            console.error('Attendance marking error:', err);
-            setScanning(false);
-            
-            const isDuplicate = err.response?.status === 409;
-            const message = isDuplicate 
-              ? '⚠️ Member already marked as present today.'
-              : err.response?.data?.message || 'Attendance failed';
-
-            setResult({
-              success: false,
-              message: message,
-              isDuplicate: isDuplicate,
-            });
-            // Auto-restart scanner after delay
-            setTimeout(() => {
-              if (document.getElementById('qr-reader')) {
-                startScanner();
-              }
-            }, 3000);
-          }
-        },
-        {
-          onDecodeError: (error) => {
-            // Silently ignore decode errors
-          },
-          preferredCamera: 'environment',
-          highlightCodeOutline: true,
-          highlightScanRegion: true,
-          maxScansPerSecond: 5,
-        }
-      );
-
-      scannerRef.current = scanner;
-
-      try {
-        await scanner.start();
-      } catch (err) {
-        console.error('Camera start error:', err);
-        setScanning(false);
-        setResult({
-          success: false,
-          message: err.message || 'Unable to access camera. Please check permissions.',
-        });
-      }
-    } catch (err) {
-      console.error('Scanner initialization failed:', err);
-      setResult({
-        success: false,
-        message: err.message || 'Failed to initialize scanner.',
-      });
-      setScanning(false);
-    }
-  };
-
-  const stopScanner = () => {
-    try {
-      if (scannerRef.current) {
-        scannerRef.current.destroy();
-        scannerRef.current = null;
-      }
-    } catch (err) {
-      console.error('Error stopping scanner:', err);
-    } finally {
-      setScanning(false);
-      const videoElement = document.getElementById('video-scanner');
-      if (videoElement) {
-        videoElement.remove();
-      }
     }
   };
 
@@ -225,8 +77,8 @@ export default function AttendancePage() {
       
       const isFirstTime = !res.data.isUpdated;
       const message = isFirstTime 
-        ? `🎉 Welcome ${res.data.data.memberName}! Marked as present.`
-        : `ℹ️ ${res.data.data.memberName} already marked as present today.`;
+        ? `👋 Welcome ${res.data.data.memberName}!`
+        : `ℹ️ ${res.data.data.memberName} already marked today.`;
 
       setResult({
         success: true,
@@ -314,6 +166,23 @@ export default function AttendancePage() {
         <label className="text-xs font-black uppercase tracking-widest text-primary mb-2 block">Check-in Hub</label>
         <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter text-on-surface mb-8">Mark <span className="text-primary">Attendance</span></h1>
 
+        {/* Result message */}
+        {result && (
+          <div className={`text-sm px-4 py-3 rounded-kinetic mb-6 font-bold uppercase tracking-wider ${
+            result.success
+              ? result.isUpdated
+                ? 'bg-tertiary/20 text-tertiary'
+                : 'bg-primary/20 text-primary'
+              : result.isDuplicate
+              ? 'bg-secondary/20 text-secondary'
+              : 'bg-secondary/20 text-secondary'
+          }`}>
+            {result.success 
+              ? result.isUpdated ? '🔄' : '✅' 
+              : result.isDuplicate ? '⚠️' : '❌'} {result.message}
+          </div>
+        )}
+
         {/* Date selector */}
         <div className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic p-4 mb-6 flex items-center gap-3 border border-outline-variant/10">
           <label className="text-sm font-bold text-on-surface-variant uppercase tracking-widest">Date:</label>
@@ -392,84 +261,38 @@ export default function AttendancePage() {
           )}
         </div>
 
-        {/* QR Scanner section */}
-        <div className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic p-4 md:p-6 mb-6 border border-outline-variant/10">
-          <h3 className="text-sm font-bold text-on-surface-variant uppercase tracking-widest mb-2">QR Scanner</h3>
-          <p className="text-xs text-on-surface-variant mb-4">Point your camera at a member's QR code to mark attendance</p>
-
-          {/* Result message */}
-          {result && (
-            <div className={`text-sm px-4 py-3 rounded-kinetic mb-4 font-bold uppercase tracking-wider ${
-              result.success
-                ? result.isUpdated
-                  ? 'bg-tertiary/20 text-tertiary'
-                  : 'bg-primary/20 text-primary'
-                : result.isDuplicate
-                ? 'bg-secondary/20 text-secondary'
-                : 'bg-secondary/20 text-secondary'
-            }`}>
-              {result.success 
-                ? result.isUpdated ? '🔄' : '✅' 
-                : result.isDuplicate ? '⚠️' : '❌'} {result.message}
-            </div>
-          )}
-
-          {/* QR Reader div - Mobile optimized */}
-          <div 
-            id="qr-reader" 
-            className={`w-full mb-4 rounded-kinetic overflow-hidden ${scanning ? 'border-2 border-primary shadow-lg shadow-primary/30' : ''}`}
-            style={{
-              height: scanning ? '500px' : '0px',
-              transition: 'all 0.3s ease'
-            }}
-          />
-
-          {/* Buttons */}
-          <div className="flex gap-2">
-            {!scanning ? (
-              <button
-                onClick={startScanner}
-                className="flex-1 bg-primary hover:bg-primary-light hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50 text-black font-bold py-3 rounded-kinetic transition-all duration-200 text-sm uppercase tracking-wider font-inter-tight shadow-lg hover:shadow-primary/30"
-              >
-                📷 Start Camera
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={stopScanner}
-                  className="flex-1 bg-secondary hover:bg-secondary/80 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-secondary/50 text-black font-bold py-3 rounded-kinetic transition-all duration-200 text-sm uppercase tracking-wider font-inter-tight shadow-lg hover:shadow-secondary/30"
-                >
-                  Stop
-                </button>
-              </>
-            )}
-          </div>
-
-          {scanning && (
-            <div className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-kinetic text-center">
-              <p className="text-xs text-primary font-bold uppercase tracking-widest">
-                🎯 Scanning... Position QR code in frame
-              </p>
-            </div>
-          )}
-        </div>
-
         {/* Date-based attendance list */}
         <div className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic p-6 border border-outline-variant/10">
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            <div className="bg-surface-container/50 backdrop-blur-sm rounded-kinetic  border border-outline-variant/20">
+              <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider mb-1">Total Members</p>
+              <p className="text-3xl font-black text-primary">{totalMembers}</p>
+            </div>
+            <div className="bg-surface-container/50 backdrop-blur-sm rounded-kinetic  border border-outline-variant/20">
+              <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider mb-4 mt-1">Present</p>
+              <p className="text-3xl font-black text-primary">{attendanceList.filter(r => r.status === 'present').length}</p>
+            </div>
+            <div className="bg-surface-container/50 backdrop-blur-sm rounded-kinetic  border border-outline-variant/20">
+              <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider mb-4 mt-1">Absent</p>
+              <p className="text-3xl font-black text-secondary">{totalMembers - attendanceList.filter(r => r.status === 'present').length}</p>
+            </div>
+          </div>
+
           <h3 className="text-lg font-black italic tracking-tighter text-on-surface mb-4" suppressHydrationWarning>
             {new Date(selectedDate).toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
             <span className="ml-3 text-sm font-normal text-on-surface-variant">
-              ({attendanceList.length} marked)
+              (Present: {attendanceList.filter(r => r.status === 'present').length})
             </span>
           </h3>
 
           {loading ? (
             <p className="text-on-surface-variant text-sm">Loading...</p>
-          ) : attendanceList.length === 0 ? (
-            <p className="text-on-surface-variant text-sm">No attendance marked for this date</p>
+          ) : attendanceList.filter(r => r.status === 'present').length === 0 ? (
+            <p className="text-on-surface-variant text-sm">No present members marked for this date</p>
           ) : (
             <div className="space-y-2">
-              {attendanceList.map((record, index) => (
+              {attendanceList.filter(r => r.status === 'present').map((record, index) => (
                 <div
                   key={record._id}
                   className="flex items-center justify-between py-3 px-4 border-b border-outline-variant/10 last:border-0 hover:bg-surface-container/50 transition rounded"
@@ -489,34 +312,15 @@ export default function AttendancePage() {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-1 rounded-kinetic font-bold uppercase tracking-wider ${
-                      record.status === 'present'
-                        ? 'bg-primary/20 text-primary'
-                        : 'bg-secondary/20 text-secondary'
-                    }`}>
+                    <span className="text-xs px-2 py-1 rounded-kinetic font-bold uppercase tracking-wider bg-primary/20 text-primary">
                       {record.status}
                     </span>
                     <button
-                      onClick={() => handleSelectMember({ _id: record.member._id, name: record.member.name })}
-                      disabled={markingLoading || record.status === 'present'}
-                      className={`text-xs px-3 py-1 rounded-kinetic font-bold transition uppercase tracking-wider ${
-                        record.status === 'present'
-                          ? 'bg-primary/20 text-primary opacity-50 cursor-not-allowed'
-                          : 'bg-primary/20 hover:bg-primary/30 text-primary'
-                      }`}
-                    >
-                      ✓
-                    </button>
-                    <button
                       onClick={() => handleSelectMemberAbsent({ _id: record.member._id, name: record.member.name })}
-                      disabled={markingLoading || record.status === 'absent'}
-                      className={`text-xs px-3 py-1 rounded-kinetic font-bold transition uppercase tracking-wider ${
-                        record.status === 'absent'
-                          ? 'bg-secondary/20 text-secondary opacity-50 cursor-not-allowed'
-                          : 'bg-secondary/20 hover:bg-secondary/30 text-secondary'
-                      }`}
+                      disabled={markingLoading}
+                      className="text-xs px-3 py-1 rounded-kinetic font-bold transition uppercase tracking-wider bg-secondary/20 hover:bg-secondary/30 text-secondary"
                     >
-                      ✗
+                      ✗ Mark Absent
                     </button>
                   </div>
                 </div>

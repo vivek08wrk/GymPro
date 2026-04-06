@@ -252,32 +252,6 @@ export default function MemberDetailPage() {
             )}
           </div>
 
-          {/* QR Code */}
-          {member.qrCode && (
-            <div className="mt-6 pt-6 border-t border-outline-variant/10">
-              <p className="text-xs font-bold text-on-surface-variant mb-3 uppercase tracking-widest">Member QR Code</p>
-              <div className="flex items-center gap-4">
-                <img
-                  src={member.qrCode}
-                  alt="QR Code"
-                  className="w-32 h-32 rounded-kinetic border border-outline-variant/20"
-                />
-                <div>
-                  <p className="text-xs text-on-surface-variant/50 mb-3">
-                    Print or show this QR code for attendance
-                  </p>
-                  <a
-                    href={member.qrCode}
-                    download={`${member.name}-qr.png`}
-                    className="text-xs bg-primary/20 text-primary hover:bg-primary/30 px-3 py-2 rounded-kinetic inline-block transition font-bold uppercase tracking-wider"
-                  >
-                    ⬇ Download QR
-                  </a>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Buttons section */}
           {!showRenewalForm && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-6">

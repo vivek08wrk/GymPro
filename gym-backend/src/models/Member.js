@@ -38,9 +38,6 @@ const memberSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  qrCode: {
-    type: String  // QR code image (Week 3 mein add karenge)
-  },
   photo: {
     type: String  // Profile photo URL (optional)
   }

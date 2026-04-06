@@ -26,36 +26,37 @@ const sendMessage = async (phone, message) => {
   }
 };
 
-// Welcome message — naaya member join kare toh (with QR code)
+// Welcome message — new member joins
 const sendWelcomeMessage = async (member) => {
   try {
-    const message = `Welcome to our gym, ${member.name}! 🎉\n\nYour membership is active until ${new Date(member.expiryDate).toLocaleDateString('en-IN')}.\n\nStay consistent and keep pushing! 💪`;
+    const message = `🏋️‍♂️ Welcome to Body Balance Gym, ${member.name}! 🔥
+
+🎉 Your fitness journey starts NOW!
+
+📅 Membership valid till: ${new Date(member.expiryDate).toLocaleDateString('en-IN')}
+
+💪 Stay consistent.
+🔥 Stay disciplined.
+🚀 Transform yourself — one rep at a time.
+
+We’re excited to have you with us at Body Balance Gym!
+Let’s build strength, confidence, and a better YOU 💯`;
     
     // Send welcome text
     await sendMessage(member.phone, message);
-    
-    // Send QR code image
-    if (member.qrCode) {
-      await sendQRImage(member.phone, member.qrCode, "Your Gym QR Code 💪");
-    }
   } catch (error) {
     console.error(`❌ Error in sendWelcomeMessage for ${member.name}:`, error.message);
-    // Don't throw - continue even if image fails
+    // Don't throw - continue even if send fails
   }
 };
 
-// Expiry reminder — 7 din pehle
+// Expiry reminder — 7 days before expiry
 const sendExpiryReminder = async (member, daysLeft) => {
   try {
     const message = `Hi ${member.name}! ⏰\n\nYour gym membership expires in ${daysLeft} days (${new Date(member.expiryDate).toLocaleDateString('en-IN')}).\n\nRenew now to keep your streak going! 💪`;
     
     // Send reminder text
     await sendMessage(member.phone, message);
-    
-    // Send QR code (if available)
-    if (member.qrCode) {
-      await sendQRImage(member.phone, member.qrCode, "Your Gym QR Code 💪");
-    }
   } catch (error) {
     console.error(`❌ Error in sendExpiryReminder for ${member.name}:`, error.message);
   }
