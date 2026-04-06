@@ -25,6 +25,20 @@ export default function AttendancePage() {
     fetchAttendanceByDate();
   }, [selectedDate]);
 
+  // Cleanup scanner on unmount
+  useEffect(() => {
+    return () => {
+      if (scannerRef.current) {
+        try {
+          scannerRef.current.clear();
+        } catch (e) {
+          // ignore
+        }
+        scannerRef.current = null;
+      }
+    };
+  }, []);
+
   const fetchAttendanceByDate = async () => {
     try {
       setLoading(true);
@@ -40,33 +54,75 @@ export default function AttendancePage() {
 
   const startScanner = async () => {
     try {
-      const { Html5QrcodeScanner } = await import('html5-qrcode');
+      // Stop previous scanner if running
+      if (scannerRef.current) {
+        try {
+          scannerRef.current.clear();
+        } catch (e) {
+          // ignore
+        }
+        scannerRef.current = null;
+      }
 
+      // Clear result and set scanning state
       setScanning(true);
       setResult(null);
 
-      // Request camera permissions for mobile
-      try {
-        await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      } catch (permErr) {
+      // Check if mediaDevices is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setResult({
           success: false,
-          message: 'Camera access denied. Please enable camera permissions.',
+          message: 'Camera not supported on this device.',
         });
         setScanning(false);
         return;
       }
 
-      // Mobile-optimized QR scanner config
+      // Request camera permissions explicitly
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
+        // Stop the stream - we'll let the scanner handle it
+        stream.getTracks().forEach(track => track.stop());
+      } catch (permErr) {
+        console.error('Camera permission error:', permErr);
+        setResult({
+          success: false,
+          message: permErr.name === 'NotAllowedError' 
+            ? 'Camera permission denied. Please enable it in settings.'
+            : 'Camera not available. Please check your device.',
+        });
+        setScanning(false);
+        return;
+      }
+
+      // Ensure container exists and is empty
+      const container = document.getElementById('qr-reader');
+      if (!container) {
+        setResult({
+          success: false,
+          message: 'Scanner container not found.',
+        });
+        setScanning(false);
+        return;
+      }
+      container.innerHTML = '';
+
+      const { Html5QrcodeScanner } = await import('html5-qrcode');
+
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const qrboxSize = isMobile ? 200 : 250;
+      const qrboxSize = isMobile ? 180 : 250;
 
       const scanner = new Html5QrcodeScanner('qr-reader', {
-        fps: 15,
+        fps: 10,
         qrbox: { width: qrboxSize, height: qrboxSize },
-        aspectRatio: 1.0,
         showTorchButtonIfSupported: true,
-        disableFlip: false,
+        // Removed aspectRatio and disableFlip for better compatibility
       }, /* verbose= */ false);
 
       scannerRef.current = scanner;
@@ -74,7 +130,11 @@ export default function AttendancePage() {
       scanner.render(
         async (decodedText) => {
           try {
-            scanner.clear();
+            // Stop scanning immediately
+            if (scannerRef.current) {
+              scannerRef.current.clear();
+              scannerRef.current = null;
+            }
             setScanning(false);
 
             // Mark attendance with scanned member ID
@@ -85,36 +145,52 @@ export default function AttendancePage() {
             });
             fetchAttendanceByDate();
           } catch (err) {
+            console.error('Attendance marking error:', err);
             setScanning(false);
             setResult({
               success: false,
               message: err.response?.data?.message || 'Attendance failed',
               isDuplicate: err.response?.status === 409,
             });
-            // Restart scanner for retry
-            setTimeout(() => startScanner(), 2000);
+            // Auto-restart scanner for retry after delay
+            setTimeout(() => {
+              if (document.getElementById('qr-reader')) {
+                startScanner();
+              }
+            }, 3000);
           }
         },
         (error) => {
-          // Silently continue scanning on errors
+          // Log but continue scanning silently
+          console.debug('QR scan error:', error);
         }
       );
     } catch (err) {
       console.error('Scanner initialization failed:', err);
       setResult({
         success: false,
-        message: 'Failed to initialize camera. Please check your device settings.',
+        message: err.message || 'Failed to start camera. Try reloading the page.',
       });
       setScanning(false);
     }
   };
 
   const stopScanner = () => {
-    if (scannerRef.current) {
-      scannerRef.current.clear();
-      scannerRef.current = null;
+    try {
+      if (scannerRef.current) {
+        scannerRef.current.clear();
+        scannerRef.current = null;
+      }
+    } catch (err) {
+      console.error('Error stopping scanner:', err);
+    } finally {
+      setScanning(false);
+      // Clear the scanner container
+      const container = document.getElementById('qr-reader');
+      if (container) {
+        container.innerHTML = '';
+      }
     }
-    setScanning(false);
   };
 
   const handleSearchChange = async (e) => {
