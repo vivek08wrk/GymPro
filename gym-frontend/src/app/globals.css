@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+@supports (color: color-mix(in lab, red, red)) {
+    .bg-neutral-950\/80 {
+        background-color: color-mix(in oklab, #ededed 80%, #fafafa);
+    }
+}

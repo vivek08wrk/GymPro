@@ -1,0 +1,413 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth';
+import { getMembers, getMemberProgress, addMemberProgress } from '@/lib/api';
+import {
+  LineChart, Line, XAxis, YAxis,
+  CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
+
+export default function ProgressPage() {
+  useAuth();
+
+  const router = useRouter();
+  const [members, setMembers] = useState([]);
+  const [selectedMember, setSelectedMember] = useState('');
+  const [progressData, setProgressData] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [form, setForm] = useState({
+    weight: '',
+    height: '',
+    chest: '',
+    waist: '',
+    hips: '',
+    trainerNotes: '',
+    diet: { calories: '', proteinGrams: '', notes: '' },
+    exercisesPerformed: [{ name: '', sets: '', reps: '', weightKg: '' }],
+  });
+
+  useEffect(() => {
+    fetchMembers();
+  }, []);
+
+  useEffect(() => {
+    if (selectedMember) fetchProgress();
+  }, [selectedMember]);
+
+  const fetchMembers = async () => {
+    try {
+      const res = await getMembers();
+      setMembers(res.data.data);
+    } catch (err) {
+      console.error('Failed to fetch members:', err);
+    }
+  };
+
+  const fetchProgress = async () => {
+    setLoading(true);
+    try {
+      const res = await getMemberProgress(selectedMember);
+      setProgressData(res.data.data.reverse()); // oldest first for chart
+    } catch (err) {
+      console.error('Failed to fetch progress:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddExercise = () => {
+    setForm({
+      ...form,
+      exercisesPerformed: [
+        ...form.exercisesPerformed,
+        { name: '', sets: '', reps: '', weightKg: '' }
+      ]
+    });
+  };
+
+  const handleExerciseChange = (index, field, value) => {
+    const updated = [...form.exercisesPerformed];
+    updated[index][field] = value;
+    setForm({ ...form, exercisesPerformed: updated });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await addMemberProgress({
+        ...form,
+        member: selectedMember,
+        weight: Number(form.weight),
+        height: Number(form.height),
+        chest: Number(form.chest),
+        waist: Number(form.waist),
+        hips: Number(form.hips),
+        diet: {
+          calories: Number(form.diet.calories),
+          proteinGrams: Number(form.diet.proteinGrams),
+          notes: form.diet.notes,
+        },
+        exercisesPerformed: form.exercisesPerformed.map((e) => ({
+          name: e.name,
+          sets: Number(e.sets),
+          reps: Number(e.reps),
+          weightKg: Number(e.weightKg),
+        })),
+      });
+      setSuccess('Progress recorded successfully!');
+      setShowForm(false);
+      fetchProgress();
+    } catch (err) {
+      console.error('Failed to add progress:', err);
+    }
+  };
+
+  // Chart ke liye weight data prepare karo
+  const weightChartData = progressData.map((p) => ({
+    date: new Date(p.recordedAt).toLocaleDateString('en-IN'),
+    weight: p.weight,
+  })).filter((d) => d.weight);
+
+  return (
+    <div className="min-h-screen bg-surface">
+
+      {/* Navbar */}
+      <header className="fixed top-0 w-full z-50 bg-neutral-950/80 backdrop-blur-heavy shadow-kinetic flex justify-between items-center px-6 h-16">
+        <span 
+          className="text-2xl font-black italic tracking-tighter text-primary cursor-pointer"
+          onClick={() => router.push('/dashboard')}
+        >
+          GymPro
+        </span>
+        <button
+          onClick={() => router.push('/dashboard')}
+          className="text-on-surface-variant hover:text-primary text-sm font-inter-tight font-bold uppercase tracking-widest"
+        >
+          ← Dashboard
+        </button>
+      </header>
+
+      <main className="pt-24 pb-12 px-6 md:px-10 max-w-5xl mx-auto">
+
+        <div className="mb-8">
+          <label className="text-xs font-black uppercase tracking-widest text-primary mb-2 block">Performance Metrics</label>
+          <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter text-on-surface">Member <span className="text-primary">Progress</span></h1>
+        </div>
+
+        {/* Member select */}
+        <div className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic p-6 mb-6 border border-outline-variant/10">
+          <label className="block text-xs font-bold text-on-surface-variant mb-3 uppercase tracking-widest">
+            Select Member
+          </label>
+          <select
+            value={selectedMember}
+            onChange={(e) => setSelectedMember(e.target.value)}
+            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary transition-colors"
+          >
+            <option value="">-- Select a member --</option>
+            {members.map((m) => (
+              <option key={m._id} value={m._id}>
+                {m.name} — {m.phone}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {selectedMember && (
+          <>
+            {/* Success message */}
+            {success && (
+              <div className="bg-primary/20 text-primary text-sm px-4 py-3 rounded-kinetic mb-6 font-bold uppercase tracking-wider">
+                ✅ {success}
+              </div>
+            )}
+
+            {/* Add progress button */}
+            <div className="flex justify-end mb-6">
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className="bg-primary hover:bg-primary-light hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50 text-black font-bold px-6 py-3 rounded-kinetic transition-all duration-200 text-sm uppercase tracking-wider font-inter-tight shadow-lg hover:shadow-primary/30"
+              >
+                + Add Progress Entry
+              </button>
+            </div>
+
+            {/* Progress form */}
+            {showForm && (
+              <div className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic p-8 mb-6 border border-outline-variant/10">
+                <h3 className="text-lg font-bold text-on-surface mb-6 uppercase tracking-widest">New Progress Entry</h3>
+                <form onSubmit={handleSubmit} className="space-y-6">
+
+                  {/* Body measurements */}
+                  <div>
+                    <p className="text-xs font-bold text-on-surface-variant mb-3 uppercase tracking-widest">Body Measurements</p>
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                      {['weight', 'height', 'chest', 'waist', 'hips'].map((field) => (
+                        <div key={field}>
+                          <label className="block text-xs text-on-surface-variant mb-1 font-bold uppercase tracking-wider">
+                            {field} {field === 'weight' || field === 'height' ? `(${field === 'weight' ? 'kg' : 'cm'})` : '(cm)'}
+                          </label>
+                          <input
+                            type="number"
+                            value={form[field]}
+                            onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                            placeholder="0"
+                            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-3 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Diet */}
+                  <div>
+                    <p className="text-xs font-bold text-on-surface-variant mb-3 uppercase tracking-widest">Diet</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-on-surface-variant mb-1 font-bold uppercase tracking-wider">Calories</label>
+                        <input
+                          type="number"
+                          value={form.diet.calories}
+                          onChange={(e) => setForm({ ...form, diet: { ...form.diet, calories: e.target.value } })}
+                          placeholder="2000"
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-3 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-on-surface-variant mb-1 font-bold uppercase tracking-wider">Protein (g)</label>
+                        <input
+                          type="number"
+                          value={form.diet.proteinGrams}
+                          onChange={(e) => setForm({ ...form, diet: { ...form.diet, proteinGrams: e.target.value } })}
+                          placeholder="150"
+                          className="w-full bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-3 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <label className="block text-xs text-on-surface-variant mb-1 font-bold uppercase tracking-wider">Diet Notes</label>
+                      <input
+                        type="text"
+                        value={form.diet.notes}
+                        onChange={(e) => setForm({ ...form, diet: { ...form.diet, notes: e.target.value } })}
+                        placeholder="Avoided sugar today"
+                        className="w-full bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-3 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Exercises */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Exercises</p>
+                      <button
+                        type="button"
+                        onClick={handleAddExercise}
+                        className="text-xs text-primary hover:text-primary-light font-bold uppercase tracking-wider"
+                      >
+                        + Add Exercise
+                      </button>
+                    </div>
+                    {form.exercisesPerformed.map((ex, index) => (
+                      <div key={index} className="grid grid-cols-2 gap-2 mb-2 md:grid-cols-4">
+                        <input
+                          type="text"
+                          value={ex.name}
+                          onChange={(e) => handleExerciseChange(index, 'name', e.target.value)}
+                          placeholder="Bench Press"
+                          className="bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-3 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary transition-colors"
+                        />
+                        <input
+                          type="number"
+                          value={ex.sets}
+                          onChange={(e) => handleExerciseChange(index, 'sets', e.target.value)}
+                          placeholder="Sets"
+                          className="bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-3 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary transition-colors"
+                        />
+                        <input
+                          type="number"
+                          value={ex.reps}
+                          onChange={(e) => handleExerciseChange(index, 'reps', e.target.value)}
+                          placeholder="Reps"
+                          className="bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-3 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary transition-colors"
+                        />
+                        <input
+                          type="number"
+                          value={ex.weightKg}
+                          onChange={(e) => handleExerciseChange(index, 'weightKg', e.target.value)}
+                          placeholder="Weight (kg)"
+                          className="bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-3 py-2.5 text-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary transition-colors"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Trainer notes */}
+                  <div>
+                    <label className="block text-xs font-bold text-on-surface-variant mb-2 uppercase tracking-widest">
+                      Trainer Notes
+                    </label>
+                    <textarea
+                      value={form.trainerNotes}
+                      onChange={(e) => setForm({ ...form, trainerNotes: e.target.value })}
+                      placeholder="Member is improving on squats..."
+                      rows={3}
+                      className="w-full bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-4 py-3 text-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary transition-colors"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowForm(false)}
+                      className="flex-1 border border-outline-variant/20 text-on-surface-variant font-bold py-3 rounded-kinetic hover:bg-surface-container/50 transition text-sm uppercase tracking-wider"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 bg-primary hover:bg-primary-light hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50 text-black font-bold py-3 rounded-kinetic transition-all duration-200 text-sm uppercase tracking-wider shadow-md hover:shadow-primary/30"
+                    >
+                      Save Progress
+                    </button>
+                  </div>
+
+                </form>
+              </div>
+            )}
+
+            {/* Weight chart */}
+            {weightChartData.length > 1 && (
+              <div className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic p-8 mb-6 border border-outline-variant/10">
+                <h3 className="text-lg font-bold text-on-surface mb-4 uppercase tracking-widest">Weight Progress</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={weightChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#999999' }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#999999' }} unit="kg" />
+                    <Tooltip contentStyle={{ backgroundColor: '#1c1c1c', border: '1px solid #cafd00' }} />
+                    <Line
+                      type="monotone"
+                      dataKey="weight"
+                      stroke="#cafd00"
+                      strokeWidth={3}
+                      dot={{ r: 5, fill: '#cafd00' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Progress history */}
+            {loading ? (
+              <p className="text-on-surface-variant text-sm">Loading...</p>
+            ) : progressData.length === 0 ? (
+              <div className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic p-10 text-center border border-outline-variant/10">
+                <p className="text-on-surface-variant text-sm">No progress records yet</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {[...progressData].reverse().map((record) => (
+                  <div key={record._id} className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic p-6 border border-outline-variant/10">
+                    <div className="flex items-center justify-between mb-4 pb-4 border-b border-outline-variant/10">
+                      <p className="text-sm font-bold text-on-surface">
+                        {new Date(record.recordedAt).toLocaleDateString('en-IN', {
+                          day: 'numeric', month: 'long', year: 'numeric'
+                        })}
+                      </p>
+                      {record.bmi && (
+                        <span className="text-xs bg-primary/20 text-primary px-3 py-1.5 rounded-kinetic font-bold uppercase tracking-wider">
+                          BMI: {record.bmi}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3 mb-4 md:grid-cols-5">
+                      {record.weight && <MiniStat label="Weight" value={`${record.weight} kg`} />}
+                      {record.chest  && <MiniStat label="Chest"  value={`${record.chest} cm`} />}
+                      {record.waist  && <MiniStat label="Waist"  value={`${record.waist} cm`} />}
+                      {record.hips   && <MiniStat label="Hips"   value={`${record.hips} cm`} />}
+                    </div>
+
+                    {record.exercisesPerformed?.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-xs text-on-surface-variant font-bold mb-2 uppercase tracking-widest">Exercises</p>
+                        <div className="flex flex-wrap gap-2">
+                          {record.exercisesPerformed.map((ex, i) => (
+                            <span key={i} className="text-xs bg-primary/20 text-primary px-3 py-1 rounded-kinetic font-bold">
+                              {ex.name} — {ex.sets}×{ex.reps} @ {ex.weightKg}kg
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {record.trainerNotes && (
+                      <p className="text-xs text-on-surface-variant bg-surface-container rounded-kinetic px-4 py-3 border border-outline-variant/10">
+                        📝 {record.trainerNotes}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+      </main>
+    </div>
+  );
+}
+
+function MiniStat({ label, value }) {
+  return (
+    <div className="bg-surface-container rounded-kinetic p-3 text-center border border-outline-variant/10">
+      <p className="text-xs text-on-surface-variant font-bold mb-1 uppercase tracking-wider">{label}</p>
+      <p className="text-sm font-bold text-on-surface">{value}</p>
+    </div>
+  );
+}
