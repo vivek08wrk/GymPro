@@ -15,6 +15,9 @@ export default function ProgressPage() {
   const router = useRouter();
   const [members, setMembers] = useState([]);
   const [selectedMember, setSelectedMember] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showResults, setShowResults] = useState(false);
   const [progressData, setProgressData] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -45,6 +48,29 @@ export default function ProgressPage() {
     } catch (err) {
       console.error('Failed to fetch members:', err);
     }
+  };
+
+  const handleSearchChange = (query) => {
+    setSearchQuery(query);
+    
+    if (query.trim().length < 2) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    const filtered = members.filter(m =>
+      m.name.toLowerCase().includes(query.toLowerCase()) ||
+      m.phone.includes(query)
+    );
+    setSearchResults(filtered);
+    setShowResults(true);
+  };
+
+  const handleSelectMember = (memberId) => {
+    setSelectedMember(memberId);
+    setSearchQuery('');
+    setShowResults(false);
   };
 
   const fetchProgress = async () => {
@@ -138,23 +164,58 @@ export default function ProgressPage() {
           <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter text-on-surface">Member <span className="text-primary">Progress</span></h1>
         </div>
 
-        {/* Member select */}
+        {/* Member search */}
         <div className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic p-6 mb-6 border border-outline-variant/10">
           <label className="block text-xs font-bold text-on-surface-variant mb-3 uppercase tracking-widest">
-            Select Member
+            Search Member
           </label>
-          <select
-            value={selectedMember}
-            onChange={(e) => setSelectedMember(e.target.value)}
-            className="w-full bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary transition-colors"
-          >
-            <option value="">-- Select a member --</option>
-            {members.map((m) => (
-              <option key={m._id} value={m._id}>
-                {m.name} — {m.phone}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Search by name or phone..."
+              className="w-full bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-4 py-3 text-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary transition-colors"
+            />
+            
+            {showResults && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-surface-container-high border border-primary/30 rounded-kinetic shadow-lg shadow-primary/20 z-50 max-h-64 overflow-y-auto backdrop-blur-heavy">
+                {searchResults.map((member) => (
+                  <button
+                    key={member._id}
+                    onClick={() => handleSelectMember(member._id)}
+                    className="w-full text-left px-4 py-3 bg-white hover:bg-gray-100 border-b border-gray-200 last:border-0 transition flex items-center justify-between"
+                  >
+                    <div>
+                      <p className="text-sm font-bold text-on-surface">{member.name}</p>
+                      <p className="text-xs text-on-surface-variant">📱 {member.phone}</p>
+                    </div>
+                    <span className={`text-xs px-3 py-1.5 rounded-full font-bold uppercase tracking-wider whitespace-nowrap ml-2 ${
+                      member.isActive 
+                        ? 'bg-primary/20 text-primary' 
+                        : 'bg-secondary/20 text-secondary'
+                    }`}>
+                      {member.isActive ? '✓ Active' : '✗ Inactive'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {searchQuery && searchResults.length === 0 && showResults && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-surface-container-high border border-outline-variant/20 rounded-kinetic p-4 text-center">
+                <p className="text-xs text-on-surface-variant">No members found</p>
+              </div>
+            )}
+          </div>
+
+          {selectedMember && members.find(m => m._id === selectedMember) && (
+            <div className="mt-3 p-3 bg-primary/10 border border-primary/20 rounded-kinetic">
+              <p className="text-xs text-primary font-bold">
+                ✓ Selected: {members.find(m => m._id === selectedMember)?.name}
+              </p>
+            </div>
+          )}
         </div>
 
         {selectedMember && (

@@ -4,6 +4,17 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY
 });
 
+// 🌍 Detect language (Hindi vs English)
+const detectLanguage = (text) => {
+  // Hindi script Unicode ranges: Devanagari (0x0900-0x097F)
+  const hindiRegex = /[\u0900-\u097F]/g;
+  const hindiChars = (text.match(hindiRegex) || []).length;
+  const totalChars = text.trim().length;
+  
+  // If more than 30% Hindi characters, it's Hindi
+  return hindiChars > totalChars * 0.3 ? 'hindi' : 'english';
+};
+
 // 🔄 Available models (in priority order)
 const AVAILABLE_MODELS = [
   'llama-3.3-70b-versatile',  // Latest Llama 3.3
@@ -56,12 +67,22 @@ const callGroqWithFallback = async (messages, maxTokens = 500) => {
 // RAG ke liye — context ke saath jawab do
 const askWithContext = async (question, contextChunks) => {
   const context = contextChunks.join('\n\n');
+  const language = detectLanguage(question);
+
+  // Language-specific system prompt
+  const systemPrompt = language === 'hindi'
+    ? `Tum ek gym assistant ho. Sirf Hindi me jawab do. English bilkul use mat karo.
+    Provided documents se jawab do. Keep answers concise aur practical.
+    Ager answer documents mein nahi hai to honestly kaho.
+    Hindi ya Hinglish mein bolo, bas English mat use karo.`
+    : `You are a helpful gym assistant. Reply ONLY in English. Do NOT use any Hindi words.
+    Answer questions based on the provided gym documents.
+    Keep answers concise and practical. If the answer is not in the context, say so honestly.`;
 
   const messages = [
     {
       role: 'system',
-      content: `You are a helpful gym assistant. Answer questions based on the provided gym documents. 
-      Keep answers concise and practical. If the answer is not in the context, say so honestly.`
+      content: systemPrompt
     },
     {
       role: 'user',
@@ -74,26 +95,41 @@ const askWithContext = async (question, contextChunks) => {
 
 // Admin insights ke liye — gym data ke baare mein
 const askAdminInsight = async (question, gymData) => {
+  const language = detectLanguage(question);
+
+  // Language-specific system prompt
+  const systemPrompt = language === 'hindi'
+    ? `Tum ek gym manager assistant ho. Gym members ke baare mein natural, conversational way mein jawab do. SIRF HINDI ME JAWAB DO.
+
+    STRICT RULES:
+    - Kabhi technical terms use mat karo: "isActive", "expiryDate", "field", "boolean", "object"
+    - Raw data ya JSON kabhi show mat karo
+    - Gym manager ki tarah bolo
+    - Short jawab: 2-3 lines max
+    - Membership active hai to bas "active hai" ya "active" kaho
+    - Dates ko naturally bolo: "5 May 2026 tak active hai"
+
+    EXAMPLE:
+    Q: "Vivek ki membership kaisi hai?"
+    A: "Vivek Singh ki membership active hai aur 5 May 2026 tak valid hai."`
+    : `You are a friendly gym manager assistant. Answer questions about gym members in a natural, conversational way. REPLY ONLY IN ENGLISH.
+
+    STRICT RULES:
+    - Never use technical terms like "isActive", "expiryDate", "field", "boolean", "object"
+    - Never show raw data or JSON
+    - Talk like a human gym manager would talk
+    - Keep answers short and to the point — 2-3 lines max
+    - If membership is active, just say "is active" or "active"
+    - For dates, say it naturally like "active until May 5, 2026"
+
+    EXAMPLE:
+    Q: "What is Vivek's membership status?"
+    A: "Vivek Singh's membership is active and valid until May 5, 2026."`
+
   const messages = [
     {
       role: 'system',
-      content: `You are a friendly gym manager assistant. Answer questions about gym members in a natural, conversational way.
-
-      STRICT RULES:
-      - Never use technical terms like "isActive", "expiryDate", "field", "boolean", "object"
-      - Never show raw data or JSON
-      - Talk like a human gym manager would talk
-      - Keep answers short and to the point — 2-3 lines max
-      - If membership is active, just say "active hai" or "active"
-      - For dates, say it naturally like "5 May 2026 tak active hai"
-      - Match the language of the question exactly — English to English, Hindi to Hindi
-
-      GOOD EXAMPLE:
-      Q: "What is the status of Vivek?"
-      A: "Vivek Singh ki membership active hai aur 5 May 2026 tak valid hai."
-
-      BAD EXAMPLE:
-      A: "Vivek Singh ka isActive field true hai aur expiryDate 2026-05-05 hai."`
+      content: systemPrompt
     },
     {
       role: 'user',

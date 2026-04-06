@@ -21,6 +21,8 @@ export default function PaymentsPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterDate, setFilterDate] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -69,6 +71,20 @@ export default function PaymentsPage() {
       setSubmitting(false);
     }
   };
+
+  // Filter payments by search and date
+  const filteredPayments = payments.filter((payment) => {
+    // Search filter (name or phone - case insensitive)
+    const searchMatch = searchQuery === '' || 
+      (payment.member?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+       payment.member?.phone.includes(searchQuery));
+    
+    // Date filter (compare date part only, ignore time)
+    const dateMatch = filterDate === '' || 
+      new Date(payment.paymentDate).toISOString().split('T')[0] === filterDate;
+    
+    return searchMatch && dateMatch;
+  });
 
   // Total revenue calculate karo
   const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
@@ -218,6 +234,38 @@ export default function PaymentsPage() {
           </div>
         )}
 
+        {/* Search and Filter */}
+        <div className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic p-4 md:p-6 mb-6 border border-outline-variant/10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Search Bar */}
+            <div>
+              <label className="block text-xs font-bold text-on-surface-variant mb-2 uppercase tracking-widest">
+                Search Member
+              </label>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name or phone..."
+                className="w-full bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-4 py-3 text-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary transition-colors"
+              />
+            </div>
+
+            {/* Date Filter */}
+            <div>
+              <label className="block text-xs font-bold text-on-surface-variant mb-2 uppercase tracking-widest">
+                Filter by Date
+              </label>
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="w-full bg-surface-container-low border border-outline-variant/20 rounded-kinetic px-4 py-3 text-sm text-on-surface focus:outline-none focus:border-primary transition-colors"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Payments list */}
         <div className="bg-surface-container-high/50 backdrop-blur-heavy rounded-kinetic overflow-hidden border border-outline-variant/10">
           
@@ -233,14 +281,14 @@ export default function PaymentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
-              {payments.length === 0 ? (
+              {filteredPayments.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-10 text-center text-on-surface-variant">
-                    No payments recorded yet
+                    No payments found
                   </td>
                 </tr>
               ) : (
-                payments.map((payment) => (
+                filteredPayments.map((payment) => (
                   <tr key={payment._id} className="hover:bg-surface-container/50 transition">
                     <td className="px-6 py-4 font-bold text-on-surface">
                       {payment.member?.name || 'Unknown'}
@@ -267,13 +315,13 @@ export default function PaymentsPage() {
 
           {/* Mobile Card View */}
           <div className="md:hidden">
-            {payments.length === 0 ? (
+            {filteredPayments.length === 0 ? (
               <div className="px-4 py-10 text-center text-on-surface-variant">
-                <p>No payments recorded yet</p>
+                <p>No payments found</p>
               </div>
             ) : (
               <div className="space-y-3 p-4">
-                {payments.map((payment) => (
+                {filteredPayments.map((payment) => (
                   <div
                     key={payment._id}
                     className="bg-surface-container-high/70 backdrop-blur-sm border border-outline-variant/20 rounded-kinetic p-4 space-y-3 hover:bg-surface-container-high/90 transition"
