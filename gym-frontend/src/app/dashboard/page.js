@@ -51,6 +51,9 @@ export default function DashboardPage() {
       const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
       const activeMembers = members.filter((m) => m.isActive).length;
 
+      // 👥 Count unique members who checked in today (not total check-ins)
+      const uniqueMembersCheckedIn = new Set(attendance.map((a) => a.memberId)).size;
+
       // Calculate members expiring in next 7 days
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -71,7 +74,7 @@ export default function DashboardPage() {
       setStats({ 
         totalMembers: members.length, 
         activeMembers, 
-        todayAttendance: attendance.length,
+        todayAttendance: uniqueMembersCheckedIn,
         expiringMembers,
         expiringPercentage,
         totalRevenue 
