@@ -19,6 +19,15 @@ export default function DashboardPage() {
     totalRevenue: 0,
   });
   const [revenueData, setRevenueData] = useState([]);
+  const [weeklyIntensity, setWeeklyIntensity] = useState([
+    { day: 'Mon', count: 0, intensity: 0 },
+    { day: 'Tue', count: 0, intensity: 0 },
+    { day: 'Wed', count: 0, intensity: 0 },
+    { day: 'Thu', count: 0, intensity: 0 },
+    { day: 'Fri', count: 0, intensity: 0 },
+    { day: 'Sat', count: 0, intensity: 0 },
+    { day: 'Sun', count: 0, intensity: 0 },
+  ]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,6 +65,9 @@ export default function DashboardPage() {
 
       const expiringPercentage = activeMembers > 0 ? Math.round((expiringMembers / activeMembers) * 100) : 0;
 
+      // Calculate weekly intensity from attendance data
+      const weekIntensity = calculateWeeklyIntensity(attendance, totalRevenue);
+      
       setStats({ 
         totalMembers: members.length, 
         activeMembers, 
@@ -65,11 +77,54 @@ export default function DashboardPage() {
         totalRevenue 
       });
       setRevenueData(revenue);
+      setWeeklyIntensity(weekIntensity);
     } catch (err) {
       console.error('Failed to fetch stats:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  // 📊 Calculate weekly intensity based on attendance patterns
+  const calculateWeeklyIntensity = (attendance, totalMembers) => {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const dayCounts = [0, 0, 0, 0, 0, 0, 0];
+
+    // Count attendance by day of week
+    attendance.forEach((record) => {
+      const date = new Date(record.checkInTime);
+      const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const adjustedDay = (dayOfWeek + 6) % 7; // Convert to Mon=0, Sun=6
+      dayCounts[adjustedDay]++;
+    });
+
+    // Calculate intensity (0-100) based on max count
+    const maxCount = Math.max(...dayCounts, 1);
+    const intensity = dayCounts.map((count) => (count / maxCount) * 100);
+
+    return dayLabels.map((day, idx) => ({
+      day,
+      count: dayCounts[idx],
+      intensity: intensity[idx],
+    }));
+  };
+
+  // 🎨 Get color based on intensity
+  const getIntensityColor = (intensity) => {
+    if (intensity === 0) return 'bg-surface-container-high/20';
+    if (intensity < 20) return 'bg-primary-dim/20';
+    if (intensity < 40) return 'bg-primary-dim/40';
+    if (intensity < 60) return 'bg-primary-dim/60';
+    if (intensity < 80) return 'bg-primary-dim';
+    return 'bg-secondary'; // Peak day
+  };
+
+  // 🏆 Get peak day info
+  const getPeakDayInfo = () => {
+    const maxIntensity = Math.max(...weeklyIntensity.map((d) => d.intensity));
+    const peakDay = weeklyIntensity.find((d) => d.intensity === maxIntensity);
+    return peakDay || { day: 'N/A', count: 0 };
   };
 
   const handleLogout = () => {
@@ -158,20 +213,28 @@ export default function DashboardPage() {
           <div className="md:col-span-4 bg-surface-container-high/50 backdrop-blur-heavy p-6 rounded-kinetic border border-outline-variant/10">
             <h3 className="text-on-surface text-lg font-black italic tracking-tight mb-4">Weekly Intensity</h3>
             <div className="grid grid-cols-7 gap-2">
-              <div className="w-6 h-6 rounded-sm bg-primary-dim/20"></div>
-              <div className="w-6 h-6 rounded-sm bg-primary-dim/40"></div>
-              <div className="w-6 h-6 rounded-sm bg-primary-dim"></div>
-              <div className="w-6 h-6 rounded-sm bg-secondary"></div>
-              <div className="w-6 h-6 rounded-sm bg-primary-dim/60"></div>
-              <div className="w-6 h-6 rounded-sm bg-surface-container-high"></div>
-              <div className="w-6 h-6 rounded-sm bg-primary-dim"></div>
+              {weeklyIntensity.map((day, idx) => (
+                <div
+                  key={idx}
+                  className={`w-6 h-6 rounded-sm ${getIntensityColor(day.intensity)} transition-all duration-300 hover:scale-110 cursor-pointer group relative`}
+                  title={`${day.day}: ${day.count} check-ins`}
+                >
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block bg-on-surface text-surface text-xs font-bold py-1 px-2 rounded-sm whitespace-nowrap z-50">
+                    {day.count} check-ins
+                  </div>
+                </div>
+              ))}
             </div>
             <div className="flex justify-between mt-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant">
-              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+              {weeklyIntensity.map((day, idx) => (
+                <span key={idx}>{day.day}</span>
+              ))}
             </div>
-            <p className="text-xs text-on-surface-variant mt-4 leading-relaxed">
-              Peak performance recorded on Thursday during strength training.
-            </p>
+            {getPeakDayInfo() && (
+              <p className="text-xs text-on-surface-variant mt-4 leading-relaxed">
+                🔥 Peak on <span className="text-primary font-bold">{getPeakDayInfo().day}</span> with <span className="text-secondary font-bold">{getPeakDayInfo().count} check-ins</span>
+              </p>
+            )}
           </div>
 
           {/* Revenue Chart */}
