@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { markAttendance, getAttendanceByDate, searchMembers, markManualAttendance } from '@/lib/api';
+import QrScanner from 'qr-scanner';
 
 export default function AttendancePage() {
   useAuth();
@@ -30,11 +31,15 @@ export default function AttendancePage() {
     return () => {
       if (scannerRef.current) {
         try {
-          scannerRef.current.clear();
+          scannerRef.current.destroy();
         } catch (e) {
           // ignore
         }
         scannerRef.current = null;
+      }
+      const videoElement = document.getElementById('video-scanner');
+      if (videoElement) {
+        videoElement.remove();
       }
     };
   }, []);
@@ -54,90 +59,54 @@ export default function AttendancePage() {
 
   const startScanner = async () => {
     try {
-      // Stop previous scanner if running
+      // Stop any existing scanner
       if (scannerRef.current) {
-        try {
-          scannerRef.current.clear();
-        } catch (e) {
-          // ignore
-        }
+        scannerRef.current.destroy();
         scannerRef.current = null;
       }
 
-      // Clear result and set scanning state
       setScanning(true);
       setResult(null);
 
-      // Check if mediaDevices is available
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setResult({
-          success: false,
-          message: 'Camera not supported on this device.',
-        });
-        setScanning(false);
-        return;
+      // Get or create video element
+      let videoElement = document.getElementById('video-scanner');
+      if (!videoElement) {
+        const container = document.getElementById('qr-reader');
+        if (!container) {
+          setResult({
+            success: false,
+            message: 'Scanner container not found.',
+          });
+          setScanning(false);
+          return;
+        }
+        container.innerHTML = '';
+        videoElement = document.createElement('video');
+        videoElement.id = 'video-scanner';
+        videoElement.style.width = '100%';
+        videoElement.style.height = '100%';
+        videoElement.style.objectFit = 'cover';
+        videoElement.style.borderRadius = '12px';
+        videoElement.style.display = 'block';
+        container.appendChild(videoElement);
       }
 
-      // Request camera permissions explicitly
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        });
-        // Stop the stream - we'll let the scanner handle it
-        stream.getTracks().forEach(track => track.stop());
-      } catch (permErr) {
-        console.error('Camera permission error:', permErr);
-        setResult({
-          success: false,
-          message: permErr.name === 'NotAllowedError' 
-            ? 'Camera permission denied. Please enable it in settings.'
-            : 'Camera not available. Please check your device.',
-        });
-        setScanning(false);
-        return;
-      }
-
-      // Ensure container exists and is empty
-      const container = document.getElementById('qr-reader');
-      if (!container) {
-        setResult({
-          success: false,
-          message: 'Scanner container not found.',
-        });
-        setScanning(false);
-        return;
-      }
-      container.innerHTML = '';
-
-      const { Html5QrcodeScanner } = await import('html5-qrcode');
-
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const qrboxSize = isMobile ? 180 : 250;
-
-      const scanner = new Html5QrcodeScanner('qr-reader', {
-        fps: 10,
-        qrbox: { width: qrboxSize, height: qrboxSize },
-        showTorchButtonIfSupported: true,
-        // Removed aspectRatio and disableFlip for better compatibility
-      }, /* verbose= */ false);
-
-      scannerRef.current = scanner;
-
-      scanner.render(
-        async (decodedText) => {
+      // Create and start scanner
+      const scanner = new QrScanner(
+        videoElement,
+        async (result) => {
           try {
-            // Stop scanning immediately
+            // Extract the QR data
+            const decodedText = result.data;
+            
+            // Stop scanner
             if (scannerRef.current) {
-              scannerRef.current.clear();
+              scannerRef.current.destroy();
               scannerRef.current = null;
             }
             setScanning(false);
 
-            // Mark attendance with scanned member ID
+            // Mark attendance
             const res = await markAttendance({ memberId: decodedText });
             setResult({
               success: true,
@@ -152,7 +121,7 @@ export default function AttendancePage() {
               message: err.response?.data?.message || 'Attendance failed',
               isDuplicate: err.response?.status === 409,
             });
-            // Auto-restart scanner for retry after delay
+            // Auto-restart scanner after delay
             setTimeout(() => {
               if (document.getElementById('qr-reader')) {
                 startScanner();
@@ -160,16 +129,34 @@ export default function AttendancePage() {
             }, 3000);
           }
         },
-        (error) => {
-          // Log but continue scanning silently
-          console.debug('QR scan error:', error);
+        {
+          onDecodeError: (error) => {
+            // Silently ignore decode errors
+          },
+          preferredCamera: 'environment',
+          highlightCodeOutline: true,
+          highlightScanRegion: true,
+          maxScansPerSecond: 5,
         }
       );
+
+      scannerRef.current = scanner;
+
+      try {
+        await scanner.start();
+      } catch (err) {
+        console.error('Camera start error:', err);
+        setScanning(false);
+        setResult({
+          success: false,
+          message: err.message || 'Unable to access camera. Please check permissions.',
+        });
+      }
     } catch (err) {
       console.error('Scanner initialization failed:', err);
       setResult({
         success: false,
-        message: err.message || 'Failed to start camera. Try reloading the page.',
+        message: err.message || 'Failed to initialize scanner.',
       });
       setScanning(false);
     }
@@ -178,17 +165,16 @@ export default function AttendancePage() {
   const stopScanner = () => {
     try {
       if (scannerRef.current) {
-        scannerRef.current.clear();
+        scannerRef.current.destroy();
         scannerRef.current = null;
       }
     } catch (err) {
       console.error('Error stopping scanner:', err);
     } finally {
       setScanning(false);
-      // Clear the scanner container
-      const container = document.getElementById('qr-reader');
-      if (container) {
-        container.innerHTML = '';
+      const videoElement = document.getElementById('video-scanner');
+      if (videoElement) {
+        videoElement.remove();
       }
     }
   };
@@ -403,7 +389,7 @@ export default function AttendancePage() {
             id="qr-reader" 
             className={`w-full mb-4 rounded-kinetic overflow-hidden ${scanning ? 'border-2 border-primary shadow-lg shadow-primary/30' : ''}`}
             style={{
-              minHeight: scanning ? '300px' : '0px',
+              height: scanning ? '500px' : '0px',
               transition: 'all 0.3s ease'
             }}
           />
