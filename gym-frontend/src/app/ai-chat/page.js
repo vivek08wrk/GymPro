@@ -34,7 +34,7 @@ export default function AIChatPage() {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/rag/documents`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://gym-backend-bykv.onrender.com/api'}/rag/documents`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
@@ -55,7 +55,7 @@ export default function AIChatPage() {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/rag/upload`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://gym-backend-bykv.onrender.com/api'}/rag/upload`,
         {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
@@ -103,7 +103,7 @@ export default function AIChatPage() {
       const endpoint = mode === 'rag' ? '/rag/ask' : '/rag/admin-insight';
 
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}${endpoint}`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://gym-backend-bykv.onrender.com/api'}${endpoint}`,
         {
           method: 'POST',
           headers: {
@@ -137,7 +137,7 @@ export default function AIChatPage() {
     try {
       const token = localStorage.getItem('token');
       await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/rag/documents/${id}`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://gym-backend-bykv.onrender.com/api'}/rag/documents/${id}`,
         {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
