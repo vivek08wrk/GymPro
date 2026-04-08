@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://gym-backend-bykv.onrender.com'
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://gym-backend-bykv.onrender.com/api'
 });
 
 // Har request mein automatically token laga do
