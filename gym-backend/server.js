@@ -18,7 +18,8 @@ startCronJobs();
 
 // 🔐 CORS configuration for multiple origins
 const allowedOrigins = [
-  'http://localhost:3000',           // Local development
+  'http://localhost:3000',           // Local development (default)
+  'http://localhost:3006',           // Local development (alternate port)
   'https://gym-pro-eta.vercel.app',  // Production frontend (Vercel)
   'https://localhost:3000',          // HTTPS local
 ];
