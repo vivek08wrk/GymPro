@@ -8,6 +8,8 @@ import {
   LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function ProgressPage() {
   useAuth();
@@ -138,6 +140,164 @@ export default function ProgressPage() {
     weight: p.weight,
   })).filter((d) => d.weight);
 
+  // 📥 Download progress history as PDF
+  const downloadProgressPDF = async () => {
+    const selectedMemberData = members.find(m => m._id === selectedMember);
+    if (!selectedMemberData || progressData.length === 0) return;
+
+    try {
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      let yPosition = 15;
+      const lineHeight = 7;
+      const margin = 12;
+
+      // 🏋️ Header - Member Info
+      pdf.setFontSize(20);
+      pdf.setTextColor(202, 253, 0); // Primary color
+      pdf.text('GymPro Progress Report', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 10;
+
+      pdf.setFontSize(10);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 12;
+
+      // Member Details Box
+      pdf.setDrawColor(202, 253, 0);
+      pdf.setFillColor(30, 30, 30);
+      pdf.rect(margin, yPosition - 5, pageWidth - 2 * margin, 24, 'F');
+      pdf.setTextColor(202, 253, 0);
+      pdf.setFontSize(11);
+      pdf.text('MEMBER INFORMATION', margin + 2, yPosition);
+      
+      pdf.setFontSize(9);
+      pdf.setTextColor(200, 200, 200);
+      yPosition += 6;
+      pdf.text(`Name: ${selectedMemberData.name}`, margin + 2, yPosition);
+      yPosition += 5;
+      pdf.text(`Phone: ${selectedMemberData.phone}`, margin + 2, yPosition);
+      yPosition += 5;
+      pdf.text(`Status: ${selectedMemberData.isActive ? 'Active' : 'Inactive'}`, margin + 2, yPosition);
+      yPosition += 5;
+      pdf.text(`Expiry: ${new Date(selectedMemberData.expiryDate).toLocaleDateString('en-IN')}`, margin + 2, yPosition);
+      yPosition += 12;
+
+      // 📊 Progress History
+      pdf.setTextColor(202, 253, 0);
+      pdf.setFontSize(12);
+      pdf.text('PROGRESS HISTORY', margin, yPosition);
+      yPosition += 8;
+
+      // Progress records
+      pdf.setFontSize(8);
+      pdf.setTextColor(180, 180, 180);
+
+      [...progressData].reverse().forEach((record, idx) => {
+        // Check if need new page
+        if (yPosition > pageHeight - 20) {
+          pdf.addPage();
+          yPosition = 15;
+        }
+
+        // Record date
+        pdf.setTextColor(202, 253, 0);
+        pdf.setFont(undefined, 'bold');
+        const recordDate = new Date(record.recordedAt).toLocaleDateString('en-IN', {
+          day: 'numeric', month: 'long', year: 'numeric'
+        });
+        pdf.text(`${idx + 1}. ${recordDate}`, margin, yPosition);
+        yPosition += 5;
+
+        // Body measurements
+        if (record.weight || record.chest || record.waist || record.hips) {
+          pdf.setTextColor(180, 180, 180);
+          pdf.setFont(undefined, 'normal');
+          let measurements = [];
+          if (record.weight) measurements.push(`Weight: ${record.weight} kg`);
+          if (record.chest) measurements.push(`Chest: ${record.chest} cm`);
+          if (record.waist) measurements.push(`Waist: ${record.waist} cm`);
+          if (record.hips) measurements.push(`Hips: ${record.hips} cm`);
+          
+          const measurementsText = measurements.join(' | ');
+          pdf.text(measurementsText, margin + 2, yPosition, { maxWidth: pageWidth - 2 * margin - 2 });
+          yPosition += 4;
+        }
+
+        // Exercises
+        if (record.exercisesPerformed?.length > 0) {
+          pdf.setFont(undefined, 'bold');
+          pdf.setTextColor(150, 200, 100);
+          pdf.text('Exercises:', margin + 2, yPosition);
+          yPosition += 3;
+          
+          pdf.setFont(undefined, 'normal');
+          pdf.setTextColor(160, 160, 160);
+          record.exercisesPerformed.forEach((ex) => {
+            const exText = `• ${ex.name} — ${ex.sets}×${ex.reps} @ ${ex.weightKg}kg`;
+            pdf.text(exText, margin + 4, yPosition);
+            yPosition += 3;
+          });
+        }
+
+        // Diet
+        if (record.diet?.calories || record.diet?.proteinGrams) {
+          yPosition += 1;
+          pdf.setFont(undefined, 'bold');
+          pdf.setTextColor(150, 200, 100);
+          pdf.text('Diet:', margin + 2, yPosition);
+          yPosition += 3;
+          
+          pdf.setFont(undefined, 'normal');
+          pdf.setTextColor(160, 160, 160);
+          if (record.diet.calories) {
+            pdf.text(`• Calories: ${record.diet.calories}`, margin + 4, yPosition);
+            yPosition += 3;
+          }
+          if (record.diet.proteinGrams) {
+            pdf.text(`• Protein: ${record.diet.proteinGrams}g`, margin + 4, yPosition);
+            yPosition += 3;
+          }
+        }
+
+        // Trainer notes
+        if (record.trainerNotes) {
+          yPosition += 1;
+          pdf.setFont(undefined, 'bold');
+          pdf.setTextColor(150, 200, 100);
+          pdf.text('Trainer Notes:', margin + 2, yPosition);
+          yPosition += 3;
+          
+          pdf.setFont(undefined, 'normal');
+          pdf.setTextColor(160, 160, 160);
+          const splitText = pdf.splitTextToSize(record.trainerNotes, pageWidth - 2 * margin - 4);
+          splitText.forEach((line) => {
+            if (yPosition > pageHeight - 10) {
+              pdf.addPage();
+              yPosition = 15;
+            }
+            pdf.text(line, margin + 4, yPosition);
+            yPosition += 3;
+          });
+        }
+
+        yPosition += 4;
+      });
+
+      // Footer
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`End of Report | GymPro © 2026`, pageWidth / 2, pageHeight - 5, { align: 'center' });
+
+      // Download
+      pdf.save(`${selectedMemberData.name}_Progress_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (err) {
+      console.error('Failed to generate PDF:', err);
+      alert('Error generating PDF');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-surface">
 
@@ -227,8 +387,19 @@ export default function ProgressPage() {
               </div>
             )}
 
-            {/* Add progress button */}
-            <div className="flex justify-end mb-6">
+            {/* Add progress & Download buttons */}
+            <div className="flex gap-3 justify-end mb-6">
+              <button
+                onClick={downloadProgressPDF}
+                disabled={progressData.length === 0}
+                className={`flex items-center gap-2 px-6 py-3 rounded-kinetic transition-all duration-200 text-sm uppercase tracking-wider font-inter-tight font-bold ${
+                  progressData.length === 0
+                    ? 'bg-on-surface-variant/20 text-on-surface-variant cursor-not-allowed'
+                    : 'bg-secondary hover:bg-secondary/90 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-secondary/50 text-black shadow-lg hover:shadow-secondary/30'
+                }`}
+              >
+                📥 Download PDF
+              </button>
               <button
                 onClick={() => setShowForm(!showForm)}
                 className="bg-primary hover:bg-primary-light hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50 text-black font-bold px-6 py-3 rounded-kinetic transition-all duration-200 text-sm uppercase tracking-wider font-inter-tight shadow-lg hover:shadow-primary/30"
