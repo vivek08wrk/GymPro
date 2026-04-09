@@ -1,15 +1,28 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 
 /**
  * LoginLoader Component
- * 
- * A full-screen loader that appears immediately after login button is clicked.
- * Shows animated logo, welcome text, dots, and progress bar.
- * The parent component controls visibility and handles redirect logic.
  */
 export default function LoginLoader({ isVisible = false }) {
+  const [statusMessage, setStatusMessage] = useState("Waking up server...");
+
+  useEffect(() => {
+    if (!isVisible) return;
+
+    // Step 1: Immediately show waking message
+    setStatusMessage("Waking up server...");
+
+    // Step 2: After small delay → signing in
+    const timer = setTimeout(() => {
+      setStatusMessage("Signing you in securely...");
+    }, 1200); // tu isko tweak kar sakta hai
+
+    return () => clearTimeout(timer);
+  }, [isVisible]);
+
   if (!isVisible) return null;
 
   return (
@@ -20,7 +33,7 @@ export default function LoginLoader({ isVisible = false }) {
       transition={{ duration: 0.3 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950"
     >
-      {/* Blurred background elements (decorative) */}
+      {/* Blurred background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
           className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500 opacity-10 blur-3xl"
@@ -34,9 +47,9 @@ export default function LoginLoader({ isVisible = false }) {
         />
       </div>
 
-      {/* Main content container */}
+      {/* Main content */}
       <div className="relative z-10 text-center px-6">
-        {/* Animated logo */}
+        {/* Logo */}
         <motion.div
           initial={{ opacity: 0, scale: 0.3 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -52,7 +65,7 @@ export default function LoginLoader({ isVisible = false }) {
           </motion.div>
         </motion.div>
 
-        {/* Welcome text section */}
+        {/* Text */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -62,12 +75,14 @@ export default function LoginLoader({ isVisible = false }) {
           <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-600 bg-clip-text text-transparent mb-2">
             Welcome Back!
           </h2>
+
+          {/* 🔥 Dynamic message */}
           <p className="text-base md:text-lg text-slate-400 font-light">
-            Signing you in...
+            {statusMessage}
           </p>
         </motion.div>
 
-        {/* Animated loading dots */}
+        {/* Dots */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -88,7 +103,7 @@ export default function LoginLoader({ isVisible = false }) {
           ))}
         </motion.div>
 
-        {/* Animated progress bar */}
+        {/* Progress bar */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
