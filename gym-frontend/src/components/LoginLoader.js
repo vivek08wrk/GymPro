@@ -1,23 +1,15 @@
 'use client';
 
-import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
 
-export default function LoginLoader({ isVisible = true, onComplete }) {
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isVisible) return;
-
-    const timer = setTimeout(() => {
-      onComplete?.();
-      router.push('/dashboard');
-    }, 1800); // Show for 1.8 seconds
-
-    return () => clearTimeout(timer);
-  }, [isVisible, onComplete, router]);
-
+/**
+ * LoginLoader Component
+ * 
+ * A full-screen loader that appears immediately after login button is clicked.
+ * Shows animated logo, welcome text, dots, and progress bar.
+ * The parent component controls visibility and handles redirect logic.
+ */
+export default function LoginLoader({ isVisible = false }) {
   if (!isVisible) return null;
 
   return (
@@ -28,8 +20,8 @@ export default function LoginLoader({ isVisible = true, onComplete }) {
       transition={{ duration: 0.3 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950"
     >
-      {/* Blurred background elements */}
-      <div className="absolute inset-0 overflow-hidden">
+      {/* Blurred background elements (decorative) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
           className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-blue-500 opacity-10 blur-3xl"
           animate={{ scale: [1, 1.1, 1], opacity: [0.1, 0.15, 0.1] }}
@@ -42,9 +34,9 @@ export default function LoginLoader({ isVisible = true, onComplete }) {
         />
       </div>
 
-      {/* Main content */}
+      {/* Main content container */}
       <div className="relative z-10 text-center px-6">
-        {/* Logo with animation */}
+        {/* Animated logo */}
         <motion.div
           initial={{ opacity: 0, scale: 0.3 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -54,24 +46,24 @@ export default function LoginLoader({ isVisible = true, onComplete }) {
           <motion.div
             animate={{ rotateY: 360 }}
             transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-            className="text-6xl md:text-7xl"
+            className="text-6xl md:text-7xl inline-block"
           >
             💪
           </motion.div>
         </motion.div>
 
-        {/* Welcome text */}
+        {/* Welcome text section */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
-          className="mb-6"
+          className="mb-8"
         >
           <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-600 bg-clip-text text-transparent mb-2">
             Welcome Back!
           </h2>
-          <p className="text-lg md:text-xl text-slate-400">
-            Logging you in...
+          <p className="text-base md:text-lg text-slate-400 font-light">
+            Signing you in...
           </p>
         </motion.div>
 
@@ -79,7 +71,7 @@ export default function LoginLoader({ isVisible = true, onComplete }) {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, ease: 'easeOut', delay: 0.4 }}
+          transition={{ duration: 0.6, ease: 'easeOut', delay: 0.3 }}
           className="flex justify-center gap-3 mb-8"
         >
           {[0, 1, 2].map((index) => (
@@ -100,8 +92,8 @@ export default function LoginLoader({ isVisible = true, onComplete }) {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, ease: 'easeOut', delay: 0.6 }}
-          className="w-48 md:w-64 h-1 bg-slate-700 rounded-full overflow-hidden mx-auto"
+          transition={{ duration: 0.6, ease: 'easeOut', delay: 0.4 }}
+          className="w-48 md:w-64 h-1.5 bg-slate-700 rounded-full overflow-hidden mx-auto"
         >
           <motion.div
             className="h-full bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-600"

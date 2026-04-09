@@ -5,28 +5,46 @@ import { useRouter } from 'next/navigation';
 import { loginAdmin } from '@/lib/api';
 import LoginLoader from '@/components/LoginLoader';
 
+/**
+ * Delay utility for splitting UI render and API call
+ * Allows React to render the loader before blocking with API request
+ */
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [showLoader, setShowLoader] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
+
+    // STEP 1: Show loader immediately (before any async work)
+    setIsLoading(true);
+    setShowLoader(true);
     setError('');
 
     try {
+      // STEP 2: Small delay to allow React to render the loader
+      // This prevents UI freezing during the API call
+      await delay(50);
+
+      // STEP 3: Call login API
       const res = await loginAdmin({ username, password });
       localStorage.setItem('token', res.data.token);
-      // Show loader instead of immediate redirect
-      setShowLoader(true);
+
+      // STEP 4: Keep loader visible for 1.5 seconds for smooth UX
+      // Then redirect to dashboard
+      await delay(1500);
+      router.push('/dashboard');
     } catch (err) {
-      setError('Invalid username or password');
-    } finally {
-      setLoading(false);
+      // STEP 5: On error, hide loader and show error message
+      setShowLoader(false);
+      setError(err.response?.data?.message || 'Invalid username or password');
+      setIsLoading(false);
     }
   };
 
@@ -81,10 +99,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={isLoading}
             className="w-full bg-primary hover:bg-primary-light hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50 text-black font-black italic py-3 rounded-kinetic transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest text-sm font-inter-tight shadow-lg hover:shadow-primary/30"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {isLoading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
