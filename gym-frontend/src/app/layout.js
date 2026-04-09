@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import { Inter, Inter_Tight } from "next/font/google";
 import "./globals.css";
+import WarmupClient from "./WarmupClient";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,7 +34,10 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${interTight.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-surface text-on-surface">{children}</body>
+      <body className="min-h-full flex flex-col bg-surface text-on-surface">
+        <WarmupClient />
+        {children}
+      </body>
     </html>
   );
 }
