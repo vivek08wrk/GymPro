@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { loginAdmin } from '@/lib/api';
+import LoginLoader from '@/components/LoginLoader';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showLoader, setShowLoader] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -19,7 +21,8 @@ export default function LoginPage() {
     try {
       const res = await loginAdmin({ username, password });
       localStorage.setItem('token', res.data.token);
-      router.push('/dashboard');
+      // Show loader instead of immediate redirect
+      setShowLoader(true);
     } catch (err) {
       setError('Invalid username or password');
     } finally {
@@ -28,7 +31,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center">
+    <>
+      <LoginLoader isVisible={showLoader} />
+      <div className="min-h-screen bg-surface flex items-center justify-center">
       <div className="bg-surface-container-high/50 backdrop-blur-heavy p-8 rounded-kinetic border border-outline-variant/10 w-full max-w-md shadow-kinetic">
 
         {/* Header */}
@@ -89,5 +94,6 @@ export default function LoginPage() {
 
       </div>
     </div>
+    </>
   );
 }
